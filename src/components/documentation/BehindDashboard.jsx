@@ -5,8 +5,8 @@ const sections = [
   {
     icon: Boxes,
     number: "01",
-    title: "Prototype: one place to understand AI use",
-    lead: "The dashboard is designed for a CFO, IT administrator, or security lead who needs a quick answer without reading raw vendor reports.",
+    title: "Start with the AI inventory",
+    lead: "Built for finance, IT, and security teams that need a clear answer without digging through separate vendor reports.",
     points: [
       ["What is in use?", "A searchable inventory lists detected tools, provider, owner team, active people, approval state, and how spend compares with each limit."],
       ["What is it costing?", "Organization and tool totals combine subscription charges with API consumption when available. These cost types are called out separately."],
@@ -29,7 +29,7 @@ const sections = [
   {
     icon: BarChart3,
     number: "03",
-    title: "Three charts that earn their space",
+    title: "Three charts for the key decisions",
     lead: "The chart set should answer the highest-value spending, adoption, and action questions at a glance.",
     points: [
       ["Spend vs. approved budget (line chart)", "Shows actual monthly spend beside the limit, with remaining budget and a projected month-end estimate. This lets finance spot a rising trajectory before the cap is crossed."],
@@ -56,8 +56,8 @@ export default function BehindDashboard({ onBack }) {
   return <main className="docs-page">
     <header className="docs-header">
       <div className="docs-kicker"><CircleHelp size={16}/> PRODUCT BRIEF <span>·</span> AI GOVERNANCE</div>
-      <h1>Make AI usage visible.<br/><em>Make the next step clear.</em></h1>
-      <p>This brief explains what the prototype shows, where real data could come from, and why these three views help finance and IT teams govern AI with less effort.</p>
+      <h1>AI usage and spend,<br/><em>in one view.</em></h1>
+      <p>This prototype puts AI tools, spend limits, team activity, and review items in one place. This brief explains what it shows, what data could support it, and why these views matter.</p>
       <div className="docs-meta"><span><i/> Week-one product concept</span><span>CloudEagle workspace</span><span>Prototype data is fictional</span></div>
     </header>
     <nav className="docs-toc" aria-label="Brief sections">{sections.map(({number,title})=><a key={number} href={`#brief-${number}`}><b>{number}</b>{title}</a>)}</nav>
@@ -65,6 +65,6 @@ export default function BehindDashboard({ onBack }) {
       <div className="docs-section-icon"><Icon size={18}/><span>{number}</span></div><div className="docs-section-body"><h2>{title}</h2><p className="docs-lead">{lead}</p><div className="docs-points">{points.map(([heading,copy])=><article key={heading}><h3>{heading}</h3><p>{copy}</p></article>)}</div></div>
     </section>)}</div>
     <aside className="docs-callout"><ShieldCheck size={19}/><div><b>How to read the demo</b><p>All values are illustrative. “Unavailable” means the source does not provide that measure in this sample; it should never be interpreted as zero usage.</p></div></aside>
-    <footer className="docs-footer"><div><b>Ready to explore the prototype?</b><span>Try the filters, search, guided tour, and tool detail panels.</span></div><button className="button primary" onClick={onBack}>Open the dashboard <ArrowRight size={16}/></button></footer>
+    <footer className="docs-footer"><div><b>See the sample dashboard</b><span>Change the period, review tool limits, and switch between the summary and analysis views.</span></div><button className="button primary" onClick={onBack}>Open the dashboard <ArrowRight size={16}/></button></footer>
   </main>;
 }

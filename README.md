@@ -43,7 +43,7 @@ npm run dev
 - Inspect anomaly signals against sample baselines and review source sync health and coverage.
 - The assignment brief is the opening page. Use its **Open the dashboard** action to explore the prototype; use **Behind the dashboard** to return to the brief.
 - Switch between **Quick overview** (four headline metrics, two core charts, and a five-tool preview) and **Detailed analysis** (API telemetry, spend ranking, full inventory, model usage, license utilization, anomalies, alerts, and data-source health). The quick tour automatically opens the detailed view so every tour stop is available.
-- AI provider marks load from the Simple Icons CDN when available. If a logo is unavailable or the browser is offline, a provider initial appears instead.
+- The OpenAI row uses the ChatGPT knot mark from Lobe Icons; other supported providers use Simple Icons. If an asset is unavailable or the browser is offline, a provider initial appears instead.
 
 Dashboard filters use a custom keyboard-accessible listbox rather than browser-native select styling. Focus it and press Enter/Space, use the arrow keys to choose an option, Enter to apply, and Escape to close.
 

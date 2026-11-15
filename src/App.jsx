@@ -409,10 +409,10 @@ export default function App() {
                   <span className="demo-tag">DEMO DATA</span>
                 </div>
                 <h1>
-                  Good morning, Jordan <span className="wave">✳</span>
+                  AI usage &amp; spend
                 </h1>
                 <p>
-                  Understand AI spend, usage, and the next action for your team.
+                  See where teams use AI, what it costs, and what needs a closer look.
                 </p>
                 <ViewModeSwitch value={displayMode} onChange={setDisplayMode} />
               </div>
@@ -421,13 +421,7 @@ export default function App() {
             <div className="plain-banner">
               <CircleHelp size={15} />
               <span>
-                <b>At a glance:</b> {formatMoney(summary.spend)} tracked for{" "}
-                {department === "All departments"
-                  ? "your organization"
-                  : department}
-                ; {summary.reviewCount} tools need a governance review. API
-                token and request totals are shown separately from subscription
-                costs.
+                <b>This period:</b> {formatMoney(summary.spend)} spent of {formatMoney(summary.budget)} budget. {summary.reviewCount} tools need review.
               </span>
               <button onClick={startTour}>
                 Take the quick tour <span>→</span>
@@ -437,7 +431,7 @@ export default function App() {
               <div id="metric-spend">
                 <MetricCard
                   kind="Wallet"
-                  label="TOTAL AI SPEND"
+                  label="AI SPEND"
                   value={formatMoney(summary.spend)}
                   unit="USD"
                   trend={delta(
@@ -462,7 +456,7 @@ export default function App() {
               <div>
                 <MetricCard
                   kind="Users"
-                  label="ACTIVE AI USERS"
+                  label="ACTIVE USERS"
                   value={summary.users.toLocaleString()}
                   unit="in selected period"
                   trend={delta(
@@ -483,9 +477,9 @@ export default function App() {
               <div>
                 <MetricCard
                   kind="Zap"
-                  label="CONNECTED AI TOOLS"
+                  label="AI TOOLS FOUND"
                   value={summary.toolCount.toLocaleString()}
-                  unit="in current filter"
+                  unit="in selected filters"
                   foot={
                     <>
                       <span className="tool-status">
@@ -508,7 +502,7 @@ export default function App() {
               <div>
                 <MetricCard
                   kind="ShieldCheck"
-                  label="POLICY & USAGE ALERTS"
+                  label="ITEMS TO REVIEW"
                   value={alerts.length.toLocaleString()}
                   unit="for review"
                   foot={
