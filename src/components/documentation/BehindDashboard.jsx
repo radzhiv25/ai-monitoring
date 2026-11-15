@@ -45,9 +45,26 @@ const chartColumns = [
   { key: "cost", label: "But", tone: "cost-cell" },
 ];
 const chartRows = [
-  { chart: "Spend vs department limit (actuals, limit, run-rate estimate)", decision: "Approve an exception, tighten spend, or keep the limit", rule: "80% approaching, 90% high use, 100% reached, above 100% over. Estimate is calculated after day 7 from spend-to-date ÷ elapsed days × cycle days.", chosen: "Run-rate estimate", cost: "An estimate is sensitive to timing and does not predict the invoice." },
-  { chart: "Usage by department (subscription and API spend)", decision: "Move budget, investigate an owner gap, or prioritize a team", rule: "Unattributed is a separate bar; show a coverage warning below 80% attribution.", chosen: "Stacked bars", cost: "Spend type is visible together; attribution gaps stay explicit." },
-  { chart: "Tool spend vs tool limit (sorted bars)", decision: "Raise, hold, or review one tool’s cap", rule: "Show utilization, remaining amount, and limit status; highlight at the configurable approaching threshold.", chosen: "Paired bars plus inventory detail", cost: "Tool limits and department budgets are independent. An increase in one does not change the other." },
+  { chart: "Organization spend vs budget (optional department filter)", decision: "Approve an exception, tighten spend, or keep the limit", rule: "80% approaching, 90% high use, 100% reached, above 100% over. Estimate is calculated after day 7 from spend-to-date ÷ elapsed days × cycle days.", chosen: "A forecast line", cost: "The estimate is sensitive to timing and does not predict the invoice." },
+  { chart: "Usage by department (subscription and API spend)", decision: "Move budget, investigate an owner gap, or prioritize a team", rule: "Unattributed is a separate bar; show a coverage warning below 80% attribution.", chosen: "A donut chart", cost: "Stacked bars take more space, and low attribution makes the chart misleading, hence the coverage warning below 80%." },
+  { chart: "Tool spend vs tool limit (sorted bars)", decision: "Raise, hold, or review one tool’s cap", rule: "Show utilization, remaining amount, and limit status; highlight at the configurable approaching threshold.", chosen: "An idle-license chart (kept in Detailed analysis)", cost: "Tool limits and department budgets are independent and can conflict; the conflict is surfaced for IT or Finance." },
+];
+
+const principleColumns = [
+  { key: "principle", label: "Principle" },
+  { key: "choice", label: "What I did" },
+  { key: "location", label: "Where to see it" },
+  { key: "tradeoff", label: "Trade-off", tone: "cost-cell" },
+];
+const principleRows = [
+  { principle: "Answer first, detail second", choice: "Quick overview has four numbers and three charts; Detailed analysis holds the rest.", location: "Quick / Detailed toggle", tradeoff: "Analysts need one extra click." },
+  { principle: "Money before tokens", choice: "Spend in dollars, split subscription and API.", location: "KPI card, department chart", tradeoff: "Hides model efficiency (see Detailed analysis, models)." },
+  { principle: "Every alert has a next step", choice: "Near-limit items open a request flow with routing and expiry.", location: "Tool drawer, Request extra budget", tradeoff: "Adds a step before a decision." },
+  { principle: "Missing is not zero", choice: "Unavailable data is labelled and unattributed spend is its own bar.", location: "Department chart, model analytics", tradeoff: "Charts look less tidy." },
+  { principle: "Estimates are labelled", choice: "Run-rate appears only after day 7 and is called an estimate.", location: "Spend vs budget chart", tradeoff: "No early-cycle estimate." },
+  { principle: "Aggregate by default, no surveillance", choice: "Team and department views; no browsing history or individual timelines.", location: "Whole product", tradeoff: "Less diagnostic detail for individual overuse." },
+  { principle: "Plain language", choice: "Definitions on hover, a 5-step tour, keyboard-operable controls, reduced-motion support.", location: "Tooltips and tour", tradeoff: "More copy on screen." },
+  { principle: "Sample data, clearly labelled", choice: "Fictional data and local-only actions.", location: "Header badge", tradeoff: "Nothing persists after a reload." },
 ];
 
 const decisionColumns = [
@@ -87,6 +104,7 @@ function Section({ id, icon: Icon, title, children }) {
 
 export default function BehindDashboard({ onBack }) {
   return <main className="docs-page proposal-page">
+    <a className="button secondary case-study-back" href="/" onClick={(event) => { event.preventDefault(); onBack(); }}>← Back to the dashboard</a>
     <header className="docs-header proposal-hero">
       <div className="docs-kicker"><CircleHelp size={16}/> PRODUCT PROPOSAL <span>·</span> AI GOVERNANCE</div>
       <h1>AI budgets, limits,<br/><em>and exceptions</em></h1>
@@ -105,6 +123,13 @@ export default function BehindDashboard({ onBack }) {
         <ul className="proposal-list"><li><b>Assumed to exist today:</b> connectors to major AI vendors, token and cost tracking, idle-license detection, budgets and alerts.</li><li><b>Proposed new value:</b> an exception workflow. A person requests extra budget with a reason and duration, small requests go to a team lead, large ones to IT or Finance, and every approval expires at cycle end.</li><li><b>Not proposed:</b> a second usage dashboard. If this duplicates what exists, cut it.</li></ul>
         <p className="proposal-core-sentence">The dashboard here is context. The new value proposed is the request and approval flow.</p>
       </Section>
+
+      <section className="proposal-principles" aria-labelledby="try-it-title">
+        <h2 id="try-it-title">Try it in 60 seconds</h2>
+        <ol className="proposal-list numbered"><li>Read the core question above.</li><li>Open the dashboard and look at the four numbers in Quick overview.</li><li>Click ChatGPT Enterprise, which is near its limit.</li><li>Choose Request extra budget and submit a small request, then a large one, and compare the routing.</li><li>Open Detailed analysis to see model costs, idle seats, and data health.</li></ol>
+        <h2>Design principles</h2>
+        <DataTable caption="Design principles, implementation, location, and trade-offs" columns={principleColumns} rows={principleRows} className="principle-table"/>
+      </section>
 
       <Section id="02" icon={Scale} title="API and data source plan">
         <DataTable caption="API and data sources required for the proposal" columns={sourceColumns} rows={sourceRows}/>

@@ -1,6 +1,11 @@
 # AI Governance Dashboard
 
-Live demo: https://ai-monitoring-khaki.vercel.app
+[Live demo](https://ai-monitoring-khaki.vercel.app) · [Case study (#case-study)](https://ai-monitoring-khaki.vercel.app/#case-study)
+
+Design principles:
+- Answer first, detail second: Quick overview surfaces the budget picture; Detailed analysis keeps the deeper signals available.
+- Make cost and uncertainty clear: subscription and API spend stay separate; missing data is unavailable, never zero.
+- Keep decisions accountable: requests show a reason, route, expiry, and local decision history; sample actions never change live systems.
 
 A responsive React + Vite prototype for an AI governance dashboard. **All figures and organizations are illustrative demo data.** No company accounts are connected.
 

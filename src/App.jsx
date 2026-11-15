@@ -3,7 +3,8 @@ import {
   CircleHelp,
   ShieldCheck,
   X,
-  SearchIcon
+  SearchIcon,
+  TriangleAlert,
 } from "lucide-react";
 import Sidebar from "./components/layout/Sidebar";
 import Header from "./components/layout/Header";
@@ -74,6 +75,7 @@ export default function App() {
   const [licenseReviewIds, setLicenseReviewIds] = useState([]);
   const [notice, setNotice] = useState(null);
   const [tourOpen, setTourOpen] = useState(false);
+  const [welcomeVisible, setWelcomeVisible] = useState(() => localStorage.getItem("cloudeagle-case-study-strip-dismissed") !== "1");
   const [tourStep, setTourStep] = useState(0);
   const [followedAlerts, setFollowedAlerts] = useState([]);
   const [governanceOverrides, setGovernanceOverrides] = useState({});
@@ -117,6 +119,8 @@ export default function App() {
     (item) => item.month === month.month,
   );
   const previousMonth = periodOptions[Math.max(0, monthIndex - 1)];
+  const cycleDays = new Date(month.year, monthIndex + 1, 0).getDate();
+  const elapsedCycleDay = Math.min(sampleCycleDay, cycleDays);
   const summary = useMemo(
     () =>
       getSummary(month, {
@@ -151,7 +155,7 @@ export default function App() {
   );
   const delta = (current, previous) =>
     previous
-      ? `${current >= previous ? "↑" : "↓"} ${Math.abs(((current - previous) / Math.max(1, previous)) * 100).toFixed(1)}%`
+      ? `${current >= previous ? "Up" : "Down"} ${Math.abs(((current - previous) / Math.max(1, previous)) * 100).toFixed(1)}%`
       : undefined;
   const timeSeries = useMemo(
     () =>
@@ -249,6 +253,8 @@ export default function App() {
     () => getIntegrationMetrics({ provider }),
     [provider],
   );
+  const latestSync = integrations.map((item) => ({ ...item, timestamp: new Date(item.lastSync.replace(" · ", " ")).getTime() })).sort((a, b) => b.timestamp - a.timestamp)[0]?.lastSync ?? "Unavailable";
+  const healthySources = integrations.filter((item) => item.status === "Healthy").length;
   const apiTools = getToolsForMonth(month, { department, provider }).filter(
     (tool) => tool.kind === "API consumption" && tool.requests !== null,
   );
@@ -309,11 +315,6 @@ export default function App() {
       goBack();
       setTimeout(() => setTourOpen(true), 120);
     } else setTourOpen(true);
-  };
-  const openBehind = () => {
-    history.pushState(null, "", `${workspacePath() === "/" ? "" : workspacePath()}/case-study`);
-    setPage("case-study");
-    setTourOpen(false);
   };
   const goToDetailedSection = (id) => {
     setDisplayMode("analysis");
@@ -458,7 +459,6 @@ export default function App() {
           sidebarCollapsed={sidebarCollapsed}
           currentPage={active}
           onAlerts={() => { setActive("Policies & Alerts"); goToDetailedSection("policy-alert-list"); }}
-          onProductBrief={openBehind}
         />
         {active === "Budget Requests" ? <BudgetRequestsPage requests={budgetRequests} exceptions={temporaryExceptions} auditEvents={auditEvents} onDecision={decideBudgetRequest} onCreate={() => setRequestTarget("New request")} /> : <div className="content" id="page-top">
             <section className="page-heading">
@@ -471,14 +471,16 @@ export default function App() {
                 </div>
                 <h1>AI budgets &amp; exceptions</h1>
                 <p>See whether spend fits its limits, which budgets need attention, and where an approval is waiting.</p>
+                <p className="dashboard-freshness"><span>Cycle day {elapsedCycleDay} of {cycleDays}</span><span>Data last synced {latestSync} · {healthySources} of {integrations.length} sources healthy</span></p>
                 <ViewModeSwitch value={displayMode} onChange={setDisplayMode} />
               </div>
               <DashboardFilters selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} range={range} setRange={setRange} granularity={granularity} setGranularity={setGranularity} department={department} setDepartment={setDepartment} provider={provider} setProvider={setProvider} onExport={exportCsv} detailed={displayMode === "analysis"} />
             </section>
+            {welcomeVisible && <aside className="welcome-strip" aria-label="Getting started"><span>New here? <a href="/#case-study">Read the 2-minute case study</a>, or <button type="button" onClick={startTour}>take the 5-step tour</button>.</span><button type="button" className="welcome-dismiss" aria-label="Dismiss getting started message" onClick={() => { localStorage.setItem("cloudeagle-case-study-strip-dismissed", "1"); setWelcomeVisible(false); }}><X size={15}/></button></aside>}
             <div className="plain-banner">
               <CircleHelp size={15} />
               <span>
-                <b>At a glance:</b> {formatMoney(summary.spend)} of {formatMoney(summary.budget)} tracked budget · {departmentsOverLimit.length} departments approaching a limit · {pendingApprovalsCount} requests waiting for review.
+                <b>At a glance:</b> {formatMoney(summary.spend)} of {formatMoney(summary.budget)} tracked budget · {departmentsOverLimit.length} {departmentsOverLimit.length === 1 ? "department" : "departments"} approaching a limit · {pendingApprovalsCount} {pendingApprovalsCount === 1 ? "request" : "requests"} waiting for review.
               </span>
               <button onClick={startTour}>
                 Take the quick tour <span>→</span>
@@ -495,7 +497,7 @@ export default function App() {
                     summary.spend,
                     monthIndex > 0 ? previousSummary.spend : null,
                   )}
-                  trendText={`vs. ${previousMonth.month}`}
+                  trendText={`vs ${previousMonth.month}`}
                   foot={<>{formatMoney(summary.subscriptionSpend)} subscriptions · {formatMoney(summary.apiSpend)} API · of {formatMoney(summary.budget)} budget</>}
                   progress={
                     summary.budget
@@ -586,7 +588,8 @@ export default function App() {
                 granularity={granularity}
                 currentSpend={filteredSpend}
                 currentBudget={filteredBudget}
-                elapsedDays={sampleCycleDay}
+                elapsedDays={elapsedCycleDay}
+                cycleDays={cycleDays}
                 cycleDays={new Date(month.year, new Date(`${month.month} 1, ${month.year}`).getMonth() + 1, 0).getDate()}
               />
               <DepartmentChart
