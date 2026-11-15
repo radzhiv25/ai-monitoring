@@ -8,20 +8,19 @@ import {
 import Sidebar from "./components/layout/Sidebar";
 import Header from "./components/layout/Header";
 import MetricCard from "./components/overview/MetricCard";
-import {
-  DepartmentChart,
-  SpendByToolChart,
-  SpendChart,
-} from "./components/overview/Charts";
+const SpendChart = React.lazy(() => import("./components/overview/Charts").then((module) => ({ default: module.SpendChart })));
+const DepartmentChart = React.lazy(() => import("./components/overview/Charts").then((module) => ({ default: module.DepartmentChart })));
+const SpendByToolChart = React.lazy(() => import("./components/overview/Charts").then((module) => ({ default: module.SpendByToolChart })));
 import { DetailDialog, ToolDrawer, ToolsTable } from "./components/shared/ToolsTable";
-import AlertsPanel from "./components/governance/AlertsPanel";
-import ModelAnalytics from "./components/governance/ModelAnalytics";
-import LicensePanel from "./components/governance/LicensePanel";
-import AnomalyPanel from "./components/governance/AnomalyPanel";
-import IntegrationHealth from "./components/governance/IntegrationHealth";
+const AlertsPanel = React.lazy(() => import("./components/governance/AlertsPanel"));
+const ModelAnalytics = React.lazy(() => import("./components/governance/ModelAnalytics"));
+const LicensePanel = React.lazy(() => import("./components/governance/LicensePanel"));
+const AnomalyPanel = React.lazy(() => import("./components/governance/AnomalyPanel"));
+const IntegrationHealth = React.lazy(() => import("./components/governance/IntegrationHealth"));
 import Tour from "./components/shared/Tour";
-import BehindDashboard from "./components/documentation/BehindDashboard";
+const BehindDashboard = React.lazy(() => import("./components/documentation/BehindDashboard"));
 import DashboardFilters from "./components/overview/DashboardFilters";
+import ViewModeSwitch from "./components/overview/ViewModeSwitch";
 import {
   departmentCatalog,
   employees,
@@ -47,6 +46,7 @@ import {
 export default function App() {
   const [active, setActive] = useState("Overview");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [displayMode, setDisplayMode] = useState("quick");
   const [page, setPage] = useState(location.hash === "#dashboard" ? "dashboard" : "docs");
   const [selectedMonth, setSelectedMonth] = useState("Nov");
   const [range, setRange] = useState("Last 6 months");
@@ -248,6 +248,7 @@ export default function App() {
     setPage("dashboard");
   };
   const startTour = () => {
+    setDisplayMode("analysis");
     setTourStep(0);
     if (page === "behind") {
       goBack();
@@ -259,10 +260,14 @@ export default function App() {
     setPage("docs");
     setTourOpen(false);
   };
+  const goToDetailedSection = (id) => {
+    setDisplayMode("analysis");
+    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 40);
+  };
   const navigate = (section) => {
     setActive(section);
     if (section === "Integrations") {
-      document.getElementById("integration-health")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      goToDetailedSection("integration-health");
       return;
     }
     if (section === "Access controls") {
@@ -270,9 +275,7 @@ export default function App() {
       return;
     }
     if (section === "Policies") {
-      document
-        .getElementById("policy-alert-list")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      goToDetailedSection("policy-alert-list");
       return;
     }
     const targets = {
@@ -371,7 +374,7 @@ export default function App() {
   const markedAlerts = followedAlerts.length;
 
   return (
-    page === "docs" ? <BehindDashboard onBack={goBack} /> :
+    page === "docs" ? <React.Suspense fallback={<main className="docs-loading" aria-live="polite">Loading product brief…</main>}><BehindDashboard onBack={goBack} /></React.Suspense> :
     <div
       className={`app-shell ${sidebarCollapsed ? "sidebar-is-collapsed" : ""}`}
     >
@@ -393,11 +396,7 @@ export default function App() {
           sidebarCollapsed={sidebarCollapsed}
           onBehind={openBehind}
           currentPage="dashboard"
-          onAlerts={() =>
-            document
-              .getElementById("policy-alert-list")
-              ?.scrollIntoView({ behavior: "smooth", block: "start" })
-          }
+          onAlerts={() => goToDetailedSection("policy-alert-list")}
         />
         {
           <div className="content" id="page-top">
@@ -415,8 +414,9 @@ export default function App() {
                 <p>
                   Understand AI spend, usage, and the next action for your team.
                 </p>
+                <ViewModeSwitch value={displayMode} onChange={setDisplayMode} />
               </div>
-              <DashboardFilters selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} range={range} setRange={setRange} granularity={granularity} setGranularity={setGranularity} department={department} setDepartment={setDepartment} provider={provider} setProvider={setProvider} onExport={exportCsv} />
+              <DashboardFilters selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} range={range} setRange={setRange} granularity={granularity} setGranularity={setGranularity} department={department} setDepartment={setDepartment} provider={provider} setProvider={setProvider} onExport={exportCsv} detailed={displayMode === "analysis"} />
             </section>
             <div className="plain-banner">
               <CircleHelp size={15} />
@@ -528,15 +528,11 @@ export default function App() {
                     </>
                   }
                   status="Sample signals that may require investigation. An anomaly is not proof of malicious or policy-violating behavior."
-                  onClick={() =>
-                    document
-                      .getElementById("policy-alert-list")
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" })
-                  }
+                  onClick={() => goToDetailedSection("policy-alert-list")}
                 />
               </div>
             </section>
-            <section className="telemetry-strip" aria-label="Tracked API usage">
+            {displayMode === "analysis" && <section className="telemetry-strip" aria-label="Tracked API usage">
               <div>
                 <span className="telemetry-icon">
                   <SearchIcon size={14} />
@@ -567,9 +563,9 @@ export default function App() {
               <span className="telemetry-coverage">
                 Coverage: {activeAPIProviders.length} demo API providers
               </span>
-            </section>
+            </section>}
             <section className="charts-grid core-charts">
-              <SpendChart
+              <React.Suspense fallback={<div className="panel chart-loading" aria-live="polite">Loading chart…</div>}><SpendChart
                 data={timeSeries}
                 granularity={granularity}
                 currentSpend={filteredSpend}
@@ -581,19 +577,21 @@ export default function App() {
                 setMetric={setDepartmentMetric}
                 activeUsers={summary.users}
                 onDepartmentSelect={onDepartmentSelect}
-              />
+              /></React.Suspense>
             </section>
-            <SpendByToolChart
+            {displayMode === "analysis" && <React.Suspense fallback={<div className="panel chart-loading" aria-live="polite">Loading spend analysis…</div>}><div className="analysis-enter"><SpendByToolChart
               data={spendChartData}
               groupBy={spendGroup}
               setGroupBy={setSpendGroup}
               onSelect={onBarSelect}
-            />
+            /></div></React.Suspense>}
             <ToolsTable
               tools={filteredTools}
               onSelect={setSelectedTool}
-              totalCount={toolCount}
+              totalCount={filteredTools.length}
+              maxRows={displayMode === "quick" ? 5 : undefined}
               onShowAll={() => {
+                setDisplayMode("analysis");
                 setDepartment("All departments");
                 setProvider("All providers");
                 setQuery("");
@@ -602,6 +600,7 @@ export default function App() {
                   ?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
             />
+            {displayMode === "analysis" && <React.Suspense fallback={<div className="panel chart-loading" aria-live="polite">Loading detailed analysis…</div>}><div className="analysis-enter">
             <ModelAnalytics data={modelMetrics} onSelect={setSelectedModel} />
             <LicensePanel
               licenses={licenseMetrics}
@@ -612,14 +611,13 @@ export default function App() {
             <AnomalyPanel alerts={anomalies} onSelect={setSelectedAlert} />
             <AlertsPanel alerts={alerts} onSelect={setSelectedAlert} />
             <IntegrationHealth integrations={integrations} onSelect={setSelectedIntegration} />
+            </div></React.Suspense>}
             <footer>
               <span>
                 Illustrative data · No live provider or employee actions
               </span>
               <span>
-                <i className="sync-dot" /> {activeAPIProviders.length} sample
-                API sources include token/request telemetry{" "}
-                <span className="footer-sep">·</span>
+                {displayMode === "analysis" ? <><i className="sync-dot" /> {activeAPIProviders.length} sample API sources include telemetry{" "}<span className="footer-sep">·</span></> : null}
                 <button onClick={startTour}>Help &amp; tour</button>
               </span>
             </footer>

@@ -4,4 +4,5 @@ import App from './App';
 import './style.css';
 import './styles/select.css';
 import './styles/docs.css';
+import './styles/overview-mode.css';
 createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);

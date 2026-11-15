@@ -19,7 +19,7 @@ src/
     governance/                Alerts, model analytics, licenses, anomaly review, and source health
     layout/                    Search header and collapsible workspace navigation
     overview/                  Dashboard filters, KPIs, and charts
-    shared/                    Accessible select, tool detail views, help tips, and guided tour
+    shared/                    Provider marks, accessible select, tool details, help tips, and guided tour
 ```
 
 ## Run locally
@@ -42,6 +42,8 @@ npm run dev
 - Review assigned inactive licenses and mark them for a local reclamation review; the displayed savings are estimates, not guaranteed savings.
 - Inspect anomaly signals against sample baselines and review source sync health and coverage.
 - The assignment brief is the opening page. Use its **Open the dashboard** action to explore the prototype; use **Behind the dashboard** to return to the brief.
+- Switch between **Quick overview** (four headline metrics, two core charts, and a five-tool preview) and **Detailed analysis** (API telemetry, spend ranking, full inventory, model usage, license utilization, anomalies, alerts, and data-source health). The quick tour automatically opens the detailed view so every tour stop is available.
+- AI provider marks load from the Simple Icons CDN when available. If a logo is unavailable or the browser is offline, a provider initial appears instead.
 
 Dashboard filters use a custom keyboard-accessible listbox rather than browser-native select styling. Focus it and press Enter/Space, use the arrow keys to choose an option, Enter to apply, and Escape to close.
 
