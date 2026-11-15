@@ -12,11 +12,13 @@ const SpendChart = React.lazy(() => import("./components/overview/Charts").then(
 const DepartmentChart = React.lazy(() => import("./components/overview/Charts").then((module) => ({ default: module.DepartmentChart })));
 const SpendByToolChart = React.lazy(() => import("./components/overview/Charts").then((module) => ({ default: module.SpendByToolChart })));
 import { DetailDialog, ToolDrawer, ToolsTable } from "./components/shared/ToolsTable";
+import RequestBudgetModal from "./components/shared/RequestBudgetModal";
 const AlertsPanel = React.lazy(() => import("./components/governance/AlertsPanel"));
 const ModelAnalytics = React.lazy(() => import("./components/governance/ModelAnalytics"));
 const LicensePanel = React.lazy(() => import("./components/governance/LicensePanel"));
 const AnomalyPanel = React.lazy(() => import("./components/governance/AnomalyPanel"));
 const IntegrationHealth = React.lazy(() => import("./components/governance/IntegrationHealth"));
+const LimitPolicyPanel = React.lazy(() => import("./components/governance/LimitPolicyPanel"));
 import Tour from "./components/shared/Tour";
 const BehindDashboard = React.lazy(() => import("./components/documentation/BehindDashboard"));
 import DashboardFilters from "./components/overview/DashboardFilters";
@@ -72,6 +74,9 @@ export default function App() {
   const [departmentBudgetOverrides, setDepartmentBudgetOverrides] = useState(
     {},
   );
+  const [budgetRequests, setBudgetRequests] = useState([]);
+  const [requestTarget, setRequestTarget] = useState(null);
+  const [routingThreshold, setRoutingThreshold] = useState(2500);
 
   useEffect(() => {
     if (
@@ -243,6 +248,22 @@ export default function App() {
     setTourOpen(false);
     localStorage.setItem("cloudeagle-ai-governance-tour-seen", "1");
   }, []);
+  const closeBudgetRequest = useCallback(() => setRequestTarget(null), []);
+  const submitBudgetRequest = ({ amount, reason, duration, target, route }) => {
+    setBudgetRequests((current) => [{
+      id: `request-${Date.now()}`,
+      target,
+      amount,
+      reason,
+      duration,
+      route,
+      requester: "Jordan Davis · IT Operations",
+      status: "Pending approval",
+      expiresAt: duration === "This cycle only" ? "Expires at cycle end" : `Expires ${duration.replace("Until ", "on ")}`,
+    }, ...current]);
+    closeBudgetRequest();
+  };
+  const decideBudgetRequest = (id, status) => setBudgetRequests((current) => current.map((request) => request.id === id ? { ...request, status } : request));
   const goBack = () => {
     history.replaceState(null, "", location.pathname + location.search + "#dashboard");
     setPage("dashboard");
@@ -603,7 +624,8 @@ export default function App() {
               onSelect={setSelectedLicense}
             />
             <AnomalyPanel alerts={anomalies} onSelect={setSelectedAlert} />
-            <AlertsPanel alerts={alerts} onSelect={setSelectedAlert} />
+            <AlertsPanel alerts={alerts} onSelect={setSelectedAlert} budgetRequests={budgetRequests} onRequestDecision={decideBudgetRequest} />
+            <LimitPolicyPanel departmentCatalog={departmentCatalog} departmentBudgetOverrides={departmentBudgetOverrides} onDepartmentBudgetChange={(name, value) => setDepartmentBudgetOverrides((current) => ({ ...current, [name]: value }))} />
             <IntegrationHealth integrations={integrations} onSelect={setSelectedIntegration} />
             </div></React.Suspense>}
             <footer>
@@ -622,6 +644,7 @@ export default function App() {
         tool={selectedTool}
         onClose={() => setSelectedTool(null)}
         onGovernanceChange={updateGovernance}
+        onRequestBudget={(tool) => setRequestTarget(`${tool.name} (${tool.ownerDepartment})`)}
       />
       <Tour
         open={tourOpen}
@@ -779,6 +802,7 @@ export default function App() {
             >
               Save demo budget
             </button>
+            <button className="button secondary" onClick={() => setRequestTarget(`${selectedDepartment} department budget`)}>Request extra budget</button>
             <p className="demo-action-note">
               Budget changes are stored only in this browser session; no finance
               system is updated.
@@ -836,6 +860,7 @@ export default function App() {
           </div>
         </DetailDialog>
       )}
+      <RequestBudgetModal open={Boolean(requestTarget)} target={requestTarget || ""} threshold={routingThreshold} onThresholdChange={setRoutingThreshold} onClose={closeBudgetRequest} onSubmit={submitBudgetRequest} />
       {notice && (
         <div className="modal-backdrop" onClick={() => setNotice(null)}>
           <section

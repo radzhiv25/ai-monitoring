@@ -25,7 +25,7 @@ export function ToolsTable({ tools, onSelect, onShowAll, totalCount, maxRows }) 
   </section>;
 }
 
-export function ToolDrawer({ tool, onClose, onGovernanceChange }) {
+export function ToolDrawer({ tool, onClose, onGovernanceChange, onRequestBudget }) {
  const [confirmAction,setConfirmAction]=useState(null);
  if (!tool) return null;
  const needsReview=tool.governance!=='Approved';
@@ -35,7 +35,7 @@ export function ToolDrawer({ tool, onClose, onGovernanceChange }) {
     <div className="drawer-detail"><span>Active users</span><b>{tool.activeUsers} people</b></div><div className="drawer-detail"><span>Responsible team</span><b>{tool.ownerDepartment}</b></div><div className="drawer-detail"><span>Renewal / billing</span><b>{tool.renewal}</b></div>
     {tool.requests!==null&&<><div className="drawer-detail"><span>Tracked API requests</span><b>{tool.requests.toLocaleString()}</b></div><div className="drawer-detail"><span>Input tokens</span><b>{tool.inputTokens.toLocaleString()}</b></div><div className="drawer-detail"><span>Output tokens</span><b>{tool.outputTokens.toLocaleString()}</b></div></>}
     <div className="drawer-note"><CircleHelp size={16}/><span><b>Suggested next step</b><br/>{needsReview?'Confirm business need and data handling with the listed team.':'Review spend against this tool’s cap before changing its budget.'} Actions here only change this local demo.</span></div>
-    {confirmAction?<div className="confirm-action"><b>{confirmAction==='approve'?'Approve this tool in the demo?':'Flag this tool for review?'}</b><p>No external provider or employee access will change.</p><button className="button secondary" onClick={()=>setConfirmAction(null)}>Cancel</button><button className="button primary" onClick={finishAction}>Confirm demo action</button></div>:<div className="drawer-actions"><button className="button secondary" onClick={()=>setConfirmAction(needsReview?'approve':'flag')}>{needsReview?'Approve tool':'Flag for review'}</button><button className="button primary" onClick={onClose}>Done</button></div>}
+    {confirmAction?<div className="confirm-action"><b>{confirmAction==='approve'?'Approve this tool in the demo?':'Flag this tool for review?'}</b><p>No external provider or employee access will change.</p><button className="button secondary" onClick={()=>setConfirmAction(null)}>Cancel</button><button className="button primary" onClick={finishAction}>Confirm demo action</button></div>:<div className="drawer-actions drawer-actions-stack"><button className="button secondary" onClick={()=>onRequestBudget(tool)}>Request extra budget</button><div><button className="button secondary" onClick={()=>setConfirmAction(needsReview?'approve':'flag')}>{needsReview?'Approve tool':'Flag for review'}</button><button className="button primary" onClick={onClose}>Done</button></div></div>}
   </aside></div>;
 }
 
