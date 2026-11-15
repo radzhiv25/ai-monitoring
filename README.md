@@ -1,5 +1,7 @@
 # AI Governance Dashboard
 
+Live demo: https://ai-monitoring-khaki.vercel.app
+
 A responsive React + Vite prototype for an AI governance dashboard. **All figures and organizations are illustrative demo data.** No company accounts are connected.
 
 ## Project structure
@@ -15,7 +17,7 @@ src/
   data/demoData.js             Normalized fictional tools, departments, people, alerts, and usage
   services/dashboardData.js    Filtering and aggregation for the dashboard mock-data service
   components/
-    documentation/             Assignment brief, data-source plan, chart rationale, and decisions
+    documentation/             Product brief, data-source plan, chart rationale, and decisions
     governance/                Alerts, model analytics, licenses, anomaly review, and source health
     layout/                    Search header and collapsible workspace navigation
     overview/                  Dashboard filters, KPIs, and charts
@@ -41,10 +43,11 @@ npm run dev
 - Inspect model-level requests, input/output tokens, cost, average cost per request, and share; switch the chart between usage and spend.
 - Review assigned inactive licenses and mark them for a local reclamation review; the displayed savings are estimates, not guaranteed savings.
 - Inspect anomaly signals against sample baselines and review source sync health and coverage.
-- The assignment brief is the opening page. Use its **Open the dashboard** action to explore the prototype; use **Behind the dashboard** to return to the brief.
+- The product brief is the opening page. Use its **Open the dashboard** action to explore the prototype; use **Behind the dashboard** to return to the brief.
 - The brief starts with the IT lead as the primary user, states the core budget question, names the three primary charts and the decision each supports, and labels the remaining panels as supporting detail.
 - The brief also includes user stories with plain-language acceptance criteria and notes later phases for project budgets and customer-defined outcome metrics. Token counts are not presented as productivity.
 - Switch between **Quick overview** (four headline metrics, two core charts, and a five-tool preview) and **Detailed analysis** (API telemetry, spend ranking, full inventory, model usage, license utilization, anomalies, alerts, and data-source health). The quick tour automatically opens the detailed view so every tour stop is available.
+- Quick overview shows spend vs budget, departments at or above 80% of limit, pending approvals, and idle assigned seats. Active people and connected AI tools are in Detailed analysis.
 - From a tool detail drawer or department budget dialog, use **Request extra budget** to submit a sample amount, reason, and duration. The local request appears in the alerts list with its requester, expiry, and approval route; Approve and Deny only update prototype state. The routing threshold is editable in the request dialog.
 - Detailed analysis includes local sample limit-policy controls for department and access-level defaults, a per-user guardrail, and separate soft/hard cap switches for people and API keys. These controls do not enforce real access limits.
 - The OpenAI row uses the ChatGPT knot mark from Lobe Icons; other supported providers use Simple Icons. If an asset is unavailable or the browser is offline, a provider initial appears instead.

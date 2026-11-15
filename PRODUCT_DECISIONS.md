@@ -2,18 +2,16 @@
 
 ## Product goal
 
-P0 and P1 prototype scope is implemented. P2 remains deferred for a later review.
-
-Help finance, IT, and security stakeholders answer three questions quickly: which AI tools are in use, what the organization spends, and what deserves a human review. The dashboard follows a Visibility → Insight → Action sequence. It extends the existing SaaS management and governance experience instead of introducing a separate product concept.
+The IT lead who owns the AI program is the primary user; finance gets a summary view. The dashboard answers which tools are in use, what they cost against limits, and what needs a human decision. Assumed: this extends the existing CloudEagle experience; to be validated with the team.
 
 ## Entry experience and information architecture
 
 | Decision | User problem | Why it was chosen | Assumptions and trade-offs |
 |---|---|---|---|
-| Open the assignment brief before the dashboard | A reviewer needs to understand the prototype and what it answers before interpreting sample metrics | The opening page explains the problem, data plan, three chart choices, and scope, then provides a direct dashboard CTA | Adds one navigation step for returning users; the dashboard remains one click away and is directly addressable with `#dashboard` |
+| Open the product brief before the dashboard | A reader needs to understand the prototype and what it answers before interpreting sample metrics | The opening page explains the problem, data plan, three chart choices, and scope, then provides a direct dashboard CTA | Adds one navigation step for returning users; the dashboard remains one click away and is directly addressable with `#dashboard` |
 | Organize UI by responsibility (`layout`, `overview`, `governance`, `shared`, `documentation`) | A monolithic component is hard to reason about and extend | Small feature components keep navigation, filters, analysis, help, and documentation focused | The main dashboard component still coordinates shared demo state; a future production implementation can move that state into domain hooks as live data contracts become known |
 | Use a custom keyboard-operable select control | Browser-native select styling is inconsistent with the rest of the interface | A reusable listbox gives the month and filters one visual treatment and keyboard behavior | It supports the needed local option lists; a production app with richer selection behavior should adopt an established accessible primitive such as Radix UI |
-| Keep the CloudEagle workspace name in the organization switcher | The demo should speak to the assignment context without repeating the company name in a separate top-level wordmark | Workspace context is visible where an organization is selected, leaving the compact app mark for product navigation | CloudEagle is a presentation label; no CloudEagle systems are connected |
+| Keep the CloudEagle workspace name in the organization switcher | The demo should speak to the CloudEagle workspace context without repeating the company name in a separate top-level wordmark | Workspace context is visible where an organization is selected, leaving the compact app mark for product navigation | CloudEagle is a presentation label; no CloudEagle systems are connected |
 | Offer quick overview and detailed analysis modes | Executives need a short scan while IT, finance, and security analysts need supporting detail | Quick view keeps four KPIs, two core charts, and the five highest-spend tools; detailed view reveals telemetry, ranked spend, full inventory, models, licenses, anomaly signals, alerts, and integration health | Default to quick overview so first-time users get a plain-language summary; detail remains one click away. Tour switches to detailed view to ensure its stops are visible |
 | Show recognizable provider logos with initials fallback | Familiar marks help people scan a mixed vendor inventory | Use the ChatGPT knot mark for OpenAI, with Simple Icons for other supported providers and provider names beside each mark | Logo assets load from public CDNs and may be unavailable offline; an initials fallback prevents broken or unlabeled images |
 
@@ -21,7 +19,7 @@ Help finance, IT, and security stakeholders answer three questions quickly: whic
 
 | Decision | User problem | Why it is in P0 | Assumptions and data dependencies | Trade-off / excluded scope |
 |---|---|---|---|---|
-| Keep four overview KPIs: AI spend, active people, connected tools, and alerts | Stakeholders need a fast read on cost, adoption, inventory, and governance work | These directly answer the assignment’s core visibility questions and preserve existing working UI | The demo has monthly provider/tool spend, organization and tool budgets, estimated active-user counts, and review statuses | Potential savings is not shown as a headline KPI yet; without license activity or comparable pricing evidence, a savings figure would be speculative |
+| Show spend vs budget, departments at or above 80% of limit, pending approvals, and idle assigned seats in Quick overview; move active people and connected tools to Detailed analysis | Stakeholders need an immediate view of financial exposure and work that needs action | These four values surface budget position, near-limit departments, requests awaiting a decision, and unused assigned licenses | Budget and usage values come from fictional provider, department, approval, and license records | The summary foregrounds cost and exceptions; broader adoption and inventory counts require opening Detailed analysis |
 | Show spend against a budget over time | A CFO or administrator needs to see whether spend is within the allowance | Budget visibility is the primary cost-control task | Tool spend is the source of monthly spend; budget is a separate configured value; weekly bars are a synthetic allocation of the selected month | Projection is labeled as an estimate. It is not an invoice forecast. Subscription and API charges remain identifiable by tool type |
 | Let the department chart switch between active people, tokens, and spend | Department managers need to see where adoption and consumption originate | One chart can answer several related questions without adding three separate panels | Active people are unique at organization level in the demo. API tokens are only available for three sample API providers. Tool spend is attributed to the tool’s owning department | Usage metrics are not interchangeable. The UI labels the selected measure and separates people, requests, and tokens |
 | Add spend by tool/provider | A user needs to find the product driving the bill and inspect its owner and limit | It makes the overview actionable and fits the existing inventory | Each demo tool has a provider, type, owning team, spend, monthly cap, and governance status | Model-level breakdown is deferred to P1 to keep the first implementation focused on tool/provider cost drivers |
@@ -29,7 +27,7 @@ Help finance, IT, and security stakeholders answer three questions quickly: whic
 | Add sample policy/usage alert details and follow-up state | Security needs a reason and a recommended next step, not only a red count | An alert list supports investigation and makes the screen actionable | Synthetic alerts include severity, department, change, baseline, related tool, and recommendation | Anomaly examples are signals for investigation, not proof of malicious activity. Baselines are illustrative |
 | Add search for tools and employees | Users need to locate an asset or person quickly in a larger inventory | Search prevents a long inventory from becoming a passive report | Demo people include name, department, role, tools, active days, and associated sample spend | Only a small set of fictional employee records is present; this does not represent full workforce coverage |
 | Add a normalized mock-data service | Provider formats and coverage will differ when integrations are introduced | Separating calculation from presentation keeps future connectors manageable | The service consumes typed mock records and produces filtered summaries for the UI | No network requests, credentials, live provider actions, or real employee data are used |
-| Add department budget review in a local dialog | An overspend signal should provide a next step | It demonstrates the review workflow for the assignment | Department budgets are separate from observed spend and can be locally edited | Saving changes the prototype session only; it does not update a finance platform |
+| Add department budget review in a local dialog | An overspend signal should provide a next step | It demonstrates the review workflow | Department budgets are separate from observed spend and can be locally edited | Saving changes the prototype session only; it does not update a finance platform |
 
 ## P1 implementation decisions
 
@@ -40,19 +38,10 @@ Help finance, IT, and security stakeholders answer three questions quickly: whic
 | Usage anomalies | Compare provider API request volume with the previous month and one employee’s tokens with a personal baseline; show severity, baseline, department, and investigation recommendation. | Baseline and current telemetry are fictional sample records. | Anomaly cards say “investigate”; they do not claim malicious activity or a policy violation. |
 | Integration health | Show sample source status, last sync, field coverage, and affected data types; delayed and partial sources are visible. | Sample sync metadata is attached to provider, identity, and finance sources. | No integration is connected. Stale or incomplete data must not appear fully current. |
 
-## Changes in this update
-
-| Decision | User problem | Assumption | Trade-off |
-|---|---|---|---|
-| Put the IT lead, core question, three selected charts, and their decisions at the top of the brief; call all other dashboard panels supporting detail | Reviewers need to understand who the screen serves and what action each primary view supports | Finance can use a concise budget summary while IT owns the overall AI program | The brief is more explicit and slightly longer; only three views are framed as primary charts |
-| Add a request-extra-budget flow from both tool and department details, with amount, reason, duration, configurable routing threshold, expiry, and local Approve/Deny state | A person near a limit needs a clear way to ask for more budget and see who reviews it | Small requests can go to a team lead, while larger requests need IT or Finance review; the current requester is a fictional IT lead | Requests are a local prototype queue, not an approval integration, notification, or actual spend-limit change; the modal adds a short step to the flow |
-| Add three role-based user stories and acceptance criteria plus a note on later phases | The prototype needs to explain success criteria and deferred scope in interview discussion | Project budgets and customer-defined Jira/GitHub outcomes can follow after basic department budgets | Outcome correlation is deferred, and tokens are explicitly not treated as productivity |
-| Add local limit-policy controls to detailed analysis for department and access-level defaults, a per-user guardrail, and cap behavior | An IT owner needs a visible place to reason about default limits and guardrails | People default to a soft cap and API keys to a hard cap in the sample policy | Controls are illustrative and do not enforce access; separate switches offer flexibility but can be changed away from recommended defaults |
-
 ## P2 candidates
 
 - AI agents, service accounts, API keys, internal apps, and MCP-connected identities.
-- Owner assignment, permission review, and revocation workflow simulations.
+- Owner setup, permission review, and revocation workflow simulations.
 - More advanced savings recommendations and reporting.
 
 ## Data assumptions and dependencies
@@ -76,9 +65,10 @@ Provider usage records should preserve provider, model, timestamp, employee/team
 
 A stakeholder can identify the selected period’s total spend and remaining budget, compare team activity by people/tokens/spend, locate the highest-cost tools/providers, search for an employee or tool, inspect an alert’s basis and next step, and distinguish demo data from live data.
 
-## Brief rewrite
+## Decision log
 
-- Replaced the earlier generic UI-description copy with a product proposal organized around the IT lead's decision, the CloudEagle fit hypothesis, data dependencies, chart choices, explicit trade-offs, success hypotheses, and open questions.
-- Added decision and trade-off tables with a visually distinct cost column. The source-plan, chart-selection, product-decision, and success-metric tables make assumptions and costs reviewable; mobile layouts present the same content as stacked cards.
-- Added proposed success metrics as hypotheses for design-partner validation, not as measured facts. Added an explicit Proposed/Assumed legend and marked the CloudEagle capability statements as assumptions.
-- Preserved the section-chip navigation, fictional sample-data note, and Open the dashboard action. User stories are collapsed by default.
+- Replaced the old generic UI-description copy with a product proposal centered on the IT lead, limits, exceptions, data coverage, and decisions.
+- Added a decision and trade-off table, a chart choice and trade-off table, and a success-metric table. The cost column is visually distinct; mobile layouts show the same information as stacked cards.
+- Success metrics are proposed hypotheses for design-partner validation, not measured facts. CloudEagle capability statements are marked as assumptions.
+- Kept the section-chip navigation, fictional sample-data note, and Open the dashboard action. User stories are collapsed by default.
+- The previous generic brief copy is replaced.

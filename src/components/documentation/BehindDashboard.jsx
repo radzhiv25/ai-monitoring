@@ -10,6 +10,10 @@ const sections = [
   { id: "06", label: "User stories" },
 ];
 
+function NotInPrototype({ children }) {
+  return <span className="not-prototype-wrap"><b className="not-prototype-tag">Not in prototype</b><small>{children}</small></span>;
+}
+
 function DataTable({ caption, columns, rows, className = "" }) {
   return <div className={`proposal-table-wrap ${className}`}>
     <table className="proposal-table">
@@ -45,8 +49,8 @@ const chartColumns = [
   { key: "cost", label: "But", tone: "cost-cell" },
 ];
 const chartRows = [
-  { chart: "Spend vs limit by department (line with limit line and run-rate estimate)", decision: "Approve a top-up, tighten, or leave alone", rule: "Alert at 80% of limit. Flag if run-rate passes 100%. Hide the estimate in the first 7 days of a cycle.", chosen: "A forecast line", cost: "Run-rate is noisy early in a cycle and late spikes show up late." },
-  { chart: "Usage by department, subscription vs API (ranked bar)", decision: "Move budget or enable a team", rule: "‘Unattributed’ is its own bar", chosen: "A donut", cost: "Low attribution makes this chart misleading, hence the 80% coverage rule." },
+  { chart: "Spend vs limit by department (line with limit line and run-rate estimate)", decision: "Approve a top-up, tighten, or leave alone", rule: <><span>Alert at 80% of limit.</span><NotInPrototype>The estimate is not calculated from elapsed cycle days; the 100% threshold and first-7-day hiding are not implemented.</NotInPrototype></>, chosen: "A forecast line", cost: "Run-rate is noisy early in a cycle and late spikes show up late." },
+  { chart: "Usage by department, subscription vs API (ranked bar)", decision: "Move budget or enable a team", rule: <><span>‘Unattributed’ is its own bar.</span><NotInPrototype>The coverage banner below 80% owner attribution is not implemented.</NotInPrototype></>, chosen: "A donut", cost: "Low attribution makes this chart misleading, hence the 80% coverage rule." },
   { chart: "Tool spend vs per-tool limit (sorted bars)", decision: "Raise, hold or renegotiate one tool’s cap", rule: "Highlight tools above 80%", chosen: "Idle-license chart (kept in Detailed view)", cost: "Department and tool limits can conflict. See open question 3." },
 ];
 
@@ -90,8 +94,8 @@ export default function BehindDashboard({ onBack }) {
     <header className="docs-header proposal-hero">
       <div className="docs-kicker"><CircleHelp size={16}/> PRODUCT PROPOSAL <span>·</span> AI GOVERNANCE</div>
       <h1>AI budgets, limits,<br/><em>and exceptions</em></h1>
-      <p>A week-one proposal: who it is for, what it decides, what each choice costs, and what would change my mind.</p>
-      <div className="docs-meta"><span><i/> Week-one product concept</span><span>CloudEagle workspace</span><span>Prototype data is fictional</span></div>
+      <p>A product proposal: who it is for, what it decides, what each choice costs, and what would change my mind.</p>
+      <div className="docs-meta"><span><i/> Product proposal</span><span>CloudEagle workspace</span><span>Prototype data is fictional</span></div>
       <div className="proposal-legend" role="note" aria-label="Proposal legend"><b>How to read this proposal</b><span><strong>Proposed</strong> = my default to test with customers.</span><span><strong>Assumed</strong> = needs validation with the CloudEagle team.</span></div>
     </header>
 
@@ -103,6 +107,7 @@ export default function BehindDashboard({ onBack }) {
         <h3 className="proposal-subhead">Problem</h3><p>AI spend sits in many vendor consoles. Owners learn about overspend from the invoice. The hard question is not &quot;how much&quot; but &quot;who is near their limit and what should happen next&quot;.</p>
         <h3 className="proposal-subhead">Fit with CloudEagle <span>(all Assumed, validate with the team)</span></h3>
         <ul className="proposal-list"><li><b>Assumed to exist today:</b> connectors to major AI vendors, token and cost tracking, idle-license detection, budgets and alerts.</li><li><b>Proposed new value:</b> an exception workflow. A person requests extra budget with a reason and duration, small requests go to a team lead, large ones to IT or Finance, and every approval expires at cycle end.</li><li><b>Not proposed:</b> a second usage dashboard. If this duplicates what exists, cut it.</li></ul>
+        <p className="proposal-core-sentence">The dashboard here is context. The new value proposed is the request and approval flow.</p>
       </Section>
 
       <Section id="02" icon={Scale} title="API and data source plan">
@@ -126,6 +131,8 @@ export default function BehindDashboard({ onBack }) {
         <DataTable caption="Proposed success metrics and their trade-offs" columns={metricColumns} rows={metricRows} className="metrics-table"/>
         <h3 className="proposal-subhead">Open questions</h3>
         <ol className="proposal-list numbered"><li>Which vendors allow limit enforcement through their API?</li><li>Who approves for contractors and shared keys?</li><li>If a department is under budget but one of its tools is over its cap, which limit wins and who approves?</li><li>How fresh must data be: daily, or near real time close to a limit?</li><li>If the CloudEagle team already has parts of this, which piece is genuinely new?</li></ol>
+        <h3 className="proposal-subhead">Validation plan (Proposed)</h3>
+        <p>Speak with 5 IT leads and 3 finance owners at companies with many AI seats: how do they learn about overspend today, who approves exceptions, how long does it take. Show the request-extra-budget flow and watch whether they would use it or route around it. Decision rule: if fewer than half already have a working approval path, build it; if most do, cut it and invest in attribution coverage.</p>
       </Section>
 
       <Section id="06" icon={ShieldCheck} title="User stories">
