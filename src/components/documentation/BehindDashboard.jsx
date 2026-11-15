@@ -134,7 +134,7 @@ export default function BehindDashboard({ onBack }) {
       <Section id="02" icon={Scale} title="API and data source plan">
         <DataTable caption="API and data sources required for the proposal" columns={sourceColumns} rows={sourceRows}/>
         <h3 className="proposal-subhead">Data rules <span>(Proposed)</span></h3>
-        <ul className="proposal-list"><li>If less than 80% of spend can be attributed to an owner, show a coverage banner on the department chart instead of hiding the gap.</li><li>Missing data is shown as &quot;Unavailable&quot;, never as zero.</li><li>Every metric shows its source and last successful sync. Daily sync is enough for the MVP.</li><li>Collect consumption data, not browsing data. Keep usage views aggregated at department level.</li></ul>
+        <ul className="proposal-list"><li>If less than 80% of spend can be attributed to an owner, show a coverage banner on the department chart instead of hiding the gap.</li><li>Missing data is shown as &quot;Unavailable&quot;, never as zero.</li><li>The header shows overall sync status; per-source status and coverage are in Detailed analysis. Daily sync is enough for the MVP.</li><li>Collect consumption data, not browsing data. Keep usage views aggregated at department level.</li></ul>
         <aside className="proposal-question"><b>Verify before building</b><p>Which vendors let an outside tool enforce a limit through their API? If a vendor only reports usage, the product can alert and route approvals but cannot block.</p></aside>
       </Section>
 

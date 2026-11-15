@@ -75,6 +75,7 @@ export default function App() {
   const [licenseReviewIds, setLicenseReviewIds] = useState([]);
   const [notice, setNotice] = useState(null);
   const [tourOpen, setTourOpen] = useState(false);
+  const [tourResolved, setTourResolved] = useState(() => isCaseStudyLocation() || localStorage.getItem("cloudeagle-ai-governance-tour-seen") === "1");
   const [welcomeVisible, setWelcomeVisible] = useState(() => localStorage.getItem("cloudeagle-case-study-strip-dismissed") !== "1");
   const [tourStep, setTourStep] = useState(0);
   const [followedAlerts, setFollowedAlerts] = useState([]);
@@ -272,6 +273,7 @@ export default function App() {
   );
   const onCloseTour = useCallback(() => {
     setTourOpen(false);
+    setTourResolved(true);
     localStorage.setItem("cloudeagle-ai-governance-tour-seen", "1");
   }, []);
   const closeBudgetRequest = useCallback(() => setRequestTarget(null), []);
@@ -318,7 +320,12 @@ export default function App() {
   };
   const goToDetailedSection = (id) => {
     setDisplayMode("analysis");
-    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 40);
+    const scrollWhenReady = (attempt = 0) => {
+      const target = document.getElementById(id);
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      else if (attempt < 10) window.setTimeout(() => scrollWhenReady(attempt + 1), 50);
+    };
+    window.setTimeout(() => scrollWhenReady(), 40);
   };
   const navigate = (section) => {
     setActive(section);
@@ -471,12 +478,12 @@ export default function App() {
                 </div>
                 <h1>AI budgets &amp; exceptions</h1>
                 <p>See whether spend fits its limits, which budgets need attention, and where an approval is waiting.</p>
-                <p className="dashboard-freshness"><span>Cycle day {elapsedCycleDay} of {cycleDays}</span><span>Data last synced {latestSync} · {healthySources} of {integrations.length} sources healthy</span></p>
+                <div className="dashboard-freshness"><span>Cycle day {elapsedCycleDay} of {cycleDays}</span><span className="data-health-group"><button type="button" className="data-health-chip" onClick={() => goToDetailedSection("integration-health")}>Data last synced {latestSync} · {healthySources} of {integrations.length} sources healthy</button>{healthySources < integrations.length && <span className="data-health-secondary">Some figures may be incomplete. <button type="button" onClick={() => goToDetailedSection("integration-health")}>See data health.</button></span>}</span></div>
                 <ViewModeSwitch value={displayMode} onChange={setDisplayMode} />
               </div>
               <DashboardFilters selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} range={range} setRange={setRange} granularity={granularity} setGranularity={setGranularity} department={department} setDepartment={setDepartment} provider={provider} setProvider={setProvider} onExport={exportCsv} detailed={displayMode === "analysis"} />
             </section>
-            {welcomeVisible && <aside className="welcome-strip" aria-label="Getting started"><span>New here? <a href="/#case-study">Read the 2-minute case study</a>, or <button type="button" onClick={startTour}>take the 5-step tour</button>.</span><button type="button" className="welcome-dismiss" aria-label="Dismiss getting started message" onClick={() => { localStorage.setItem("cloudeagle-case-study-strip-dismissed", "1"); setWelcomeVisible(false); }}><X size={15}/></button></aside>}
+            {welcomeVisible && tourResolved && !tourOpen && <aside className="welcome-strip" aria-label="Getting started"><span>New here? <a href="/#case-study">Read the 2-minute case study</a>, or <button type="button" onClick={startTour}>take the 5-step tour</button>.</span><button type="button" className="welcome-dismiss" aria-label="Dismiss getting started message" onClick={() => { localStorage.setItem("cloudeagle-case-study-strip-dismissed", "1"); setWelcomeVisible(false); }}><X size={15}/></button></aside>}
             <div className="plain-banner">
               <CircleHelp size={15} />
               <span>
@@ -497,7 +504,7 @@ export default function App() {
                     summary.spend,
                     monthIndex > 0 ? previousSummary.spend : null,
                   )}
-                  trendText={`vs ${previousMonth.month}`}
+                  trendText={`vs full ${previousMonth.month}`}
                   foot={<>{formatMoney(summary.subscriptionSpend)} subscriptions · {formatMoney(summary.apiSpend)} API · of {formatMoney(summary.budget)} budget</>}
                   progress={
                     summary.budget

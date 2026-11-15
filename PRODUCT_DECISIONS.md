@@ -89,3 +89,7 @@ A stakeholder can identify the selected period’s spend and remaining budget, c
 - OpenRouter is a sample tool with unattributed spend and unavailable request/token telemetry; that spend remains separate and is not assigned to a team.
 - A simultaneous tool and department limit breach is shown as a conflict; changing either allocation does not silently change the other or the organization budget.
 - No real provider integrations, financial updates, or employee notifications were added.
+- Aligned the latest sample source-sync timestamp to cycle day 21; alert, request-submission/decision, and activity timestamps are no later than that day. Nov 30 expiry dates remain cycle-end deadlines.
+- Labeled the KPI comparison as “vs full [month]” because the sample cannot support a same-day prior-month comparison.
+- Made the data-health status link to Detailed analysis, where source-level sync and coverage details are shown.
+- Clarified that the header summarizes overall sync status while per-source sync and coverage live in Detailed analysis.

@@ -69,7 +69,7 @@ export const licenseCatalog = [
 ];
 
 export const integrationCatalog = [
-  { id:'int-openai', name:'OpenAI admin + usage', provider:'OpenAI', status:'Healthy', lastSync:'Nov 14, 2026 · 09:12', coverage:['API spend','Requests','Input/output tokens'], coveragePercent:96 },
+  { id:'int-openai', name:'OpenAI admin + usage', provider:'OpenAI', status:'Healthy', lastSync:'Nov 21, 2026 · 09:12', coverage:['API spend','Requests','Input/output tokens'], coveragePercent:96 },
   { id:'int-anthropic', name:'Anthropic Console', provider:'Anthropic', status:'Delayed', lastSync:'Nov 14, 2026 · 01:45', coverage:['API spend','Requests','Input/output tokens'], coveragePercent:82 },
   { id:'int-google', name:'Google Workspace + Gemini', provider:'Google', status:'Healthy', lastSync:'Nov 14, 2026 · 08:58', coverage:['Subscription spend','API usage'], coveragePercent:91 },
   { id:'int-identity', name:'Workforce identity directory', provider:'Identity', status:'Partial data', lastSync:'Nov 13, 2026 · 23:10', coverage:['User and department mapping'], coveragePercent:76 },
