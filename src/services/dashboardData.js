@@ -1,4 +1,4 @@
-import { alertCatalog, departmentCatalog, employeeUsageBaselines, employees, integrationCatalog, licenseCatalog, modelUsage, periodOptions, toolCatalog } from '../data/demoData.js';
+import { alertCatalog, departmentCatalog, integrationCatalog, licenseCatalog, modelUsage, periodOptions, toolCatalog } from '../data/demoData.js';
 
 const formatMoneyForData=(value)=>`$${Number(value||0).toLocaleString('en-US')}`;
 const allocation = (total, weights) => {
@@ -33,14 +33,16 @@ export function getModelMetrics(month, { provider = 'All providers', department 
 export function getToolsForMonth(month, { department = 'All departments', provider = 'All providers', governanceOverrides = {} } = {}) {
   return toolCatalog.map((tool) => {
     const modelRows=tool.kind==='API consumption'?getModelMetrics(month,{provider:tool.provider,department:tool.ownerDepartment}):[];
-    const telemetry=tool.kind==='API consumption'?modelUsage.filter((row)=>row.provider===tool.provider&&row.department===tool.ownerDepartment).map((row)=>currentUsage(row,month)).reduce((total,row)=>({requests:total.requests+row.requests,inputTokens:total.inputTokens+row.inputTokens,outputTokens:total.outputTokens+row.outputTokens}),{requests:0,inputTokens:0,outputTokens:0}):null;
+    const toolModels=tool.kind==='API consumption'?modelUsage.filter((row)=>row.provider===tool.provider&&row.department===tool.ownerDepartment):[];
+    const telemetry=tool.kind==='API consumption'&&toolModels.length?toolModels.map((row)=>currentUsage(row,month)).reduce((total,row)=>({requests:total.requests+row.requests,inputTokens:total.inputTokens+row.inputTokens,outputTokens:total.outputTokens+row.outputTokens}),{requests:0,inputTokens:0,outputTokens:0}):null;
     const modelSpend=modelRows.reduce((sum,row)=>sum+row.spend,0);
     return {
       ...tool,
-      spend:tool.kind==='API consumption'?modelSpend:Math.round(tool.monthlySpend*month.usageFactor),
-      activeUsers:Math.max(1,Math.round(tool.users*month.activeUsers/periodOptions.at(-1).activeUsers)),
+      spend:tool.kind==='API consumption'&&modelRows.length?modelSpend:Math.round(tool.monthlySpend*month.usageFactor),
+      activeUsers:tool.usageDataAvailable===false?null:tool.users===0?0:Math.max(1,Math.round(tool.users*month.activeUsers/periodOptions.at(-1).activeUsers)),
       governance:governanceOverrides[tool.id]||tool.governance,
       requests:telemetry?.requests??null,inputTokens:telemetry?.inputTokens??null,outputTokens:telemetry?.outputTokens??null,
+      usageDataAvailable:tool.usageDataAvailable!==false,
     };
   }).filter((tool)=>(department==='All departments'||tool.ownerDepartment===department)&&(provider==='All providers'||tool.provider===provider));
 }
@@ -72,28 +74,38 @@ export function getDepartmentMetrics(month, metric = 'users', provider = 'All pr
   const byDepartment=departmentCatalog.map((department,index)=>{
     const departmentTools=tools.filter((tool)=>tool.ownerDepartment===department.name);
     const spend=departmentTools.reduce((sum,tool)=>sum+tool.spend,0);
+    const subscriptionSpend=departmentTools.filter((tool)=>tool.kind==='Subscription').reduce((sum,tool)=>sum+tool.spend,0);
+    const apiSpend=departmentTools.filter((tool)=>tool.kind==='API consumption').reduce((sum,tool)=>sum+tool.spend,0);
     const tokens=departmentTools.reduce((sum,tool)=>sum+(tool.inputTokens||0)+(tool.outputTokens||0),0);
     const users=userValues[index];
-    return {...department,users,activeUsers:users,spend,tokens,value:metric==='spend'?spend:metric==='tokens'?tokens:users};
+    return {...department,users,activeUsers:users,spend,subscriptionSpend,apiSpend,tokens,value:metric==='spend'?spend:metric==='tokens'?tokens:users};
   });
   const mappedDepartments=new Set(departmentCatalog.map((department)=>department.name));
   const unattributedTools=tools.filter((tool)=>!mappedDepartments.has(tool.ownerDepartment));
-  if(unattributedTools.length){
+  {
     const spend=unattributedTools.reduce((sum,tool)=>sum+tool.spend,0);
+    const subscriptionSpend=unattributedTools.filter((tool)=>tool.kind==='Subscription').reduce((sum,tool)=>sum+tool.spend,0);
+    const apiSpend=unattributedTools.filter((tool)=>tool.kind==='API consumption').reduce((sum,tool)=>sum+tool.spend,0);
     const tokens=unattributedTools.reduce((sum,tool)=>sum+(tool.inputTokens||0)+(tool.outputTokens||0),0);
-    byDepartment.push({name:'Unattributed',users:null,activeUsers:null,spend,tokens,value:metric==='spend'?spend:metric==='tokens'?tokens:null});
+    byDepartment.push({name:'Unattributed',users:null,activeUsers:null,spend,subscriptionSpend,apiSpend,tokens,value:metric==='spend'?spend:metric==='tokens'?tokens:null});
   }
+  const totalSpend=tools.reduce((sum,tool)=>sum+tool.spend,0);
+  const unattributedSpend=unattributedTools.reduce((sum,tool)=>sum+tool.spend,0);
+  const attributionCoverage=totalSpend?1-unattributedSpend/totalSpend:1;
+  byDepartment.forEach((row)=>{row.attributionCoverage=attributionCoverage;row.unattributedSpend=unattributedSpend;});
   return byDepartment;
 }
 
 export function getProviderSpend(month,{department='All departments'}={}) {
   const tools=getToolsForMonth(month,{department});
-  return [...new Set(tools.map((tool)=>tool.provider))].map((provider)=>({provider,spend:tools.filter((tool)=>tool.provider===provider).reduce((sum,tool)=>sum+tool.spend,0)})).sort((a,b)=>b.spend-a.spend);
+  return [...new Set(tools.map((tool)=>tool.provider))].map((provider)=>{const providerTools=tools.filter((tool)=>tool.provider===provider);return {provider,spend:providerTools.reduce((sum,tool)=>sum+tool.spend,0),monthlyLimit:providerTools.reduce((sum,tool)=>sum+tool.monthlyLimit,0)};}).sort((a,b)=>b.spend-a.spend);
 }
 
 export function getSummary(month,{department='All departments',provider='All providers',governanceOverrides={},departmentBudgetOverrides={}}={}) {
   const tools=getToolsForMonth(month,{department,provider,governanceOverrides});
   const spend=tools.reduce((sum,tool)=>sum+tool.spend,0);
+  const subscriptionSpend=tools.filter((tool)=>tool.kind==='Subscription').reduce((sum,tool)=>sum+tool.spend,0);
+  const apiSpend=tools.filter((tool)=>tool.kind==='API consumption').reduce((sum,tool)=>sum+tool.spend,0);
   const tokens=tools.reduce((sum,tool)=>sum+(tool.inputTokens||0)+(tool.outputTokens||0),0);
   const requests=tools.reduce((sum,tool)=>sum+(tool.requests||0),0);
   const allSpend=getToolsForMonth(month).reduce((sum,tool)=>sum+tool.spend,0)||1;
@@ -101,7 +113,7 @@ export function getSummary(month,{department='All departments',provider='All pro
   const departmentUsers=department==='All departments'?month.activeUsers:Math.round((departmentCatalog.find((item)=>item.name===department)?.activeUsers||0)*month.activeUsers/periodOptions.at(-1).activeUsers);
   const users=Math.round(departmentUsers*providerShare);
   const budget=department!=='All departments'?(departmentBudgetOverrides[department]??departmentCatalog.find((item)=>item.name===department)?.monthlyBudget??0):provider==='All providers'?45000:tools.reduce((sum,tool)=>sum+tool.monthlyLimit,0);
-  return {spend,users,toolCount:tools.length,tokens,requests,budget,approvedCount:tools.filter((tool)=>tool.governance==='Approved').length,reviewCount:tools.filter((tool)=>tool.governance!=='Approved').length};
+  return {spend,subscriptionSpend,apiSpend,users,toolCount:tools.length,tokens,requests,budget,approvedCount:tools.filter((tool)=>tool.governance==='Approved').length,reviewCount:tools.filter((tool)=>tool.governance!=='Approved').length};
 }
 
 export function getLicenseMetrics(month,{provider='All providers',department='All departments'}={}) {
@@ -134,22 +146,18 @@ export function getAnomalyAlerts(month,{department='All departments',provider='A
       anomalies.push({id:`anomaly-${source.toLowerCase()}`,type:'Usage anomaly',severity:change>=50?'High':'Medium',title:`${source} API requests rose sharply`,department:ownerDepartment||'Organization',change:`+${change.toFixed(0)}%`,baseline:`${currentRequests.toLocaleString()} requests vs. ${previousRequests.toLocaleString()} in ${previous.month}`,tool:`${source} API`,recommendation:'Review the recent request volume, model mix, and project activity with the service owner. This signal needs investigation and does not indicate misuse.'});
     }
   }
-  if(month.month==='Nov'&&(department==='All departments'||department==='Engineering')&&(provider==='All providers'||provider==='OpenAI')){
-    const sample=employeeUsageBaselines.find((item)=>item.employeeId==='emp-001');
-    const person=employees.find((item)=>item.id===sample?.employeeId);
-    if(sample&&person){const change=(sample.currentTokens-sample.baselineTokens)/sample.baselineTokens*100;anomalies.push({id:'anomaly-employee-maya',type:'Usage anomaly',severity:'High',title:`${person.name} API token use is above baseline`,department:person.department,change:`+${change.toFixed(0)}%`,baseline:`${sample.currentTokens.toLocaleString()} tokens vs. ${sample.baselineTokens.toLocaleString()} in the ${sample.window}`,tool:`${sample.provider} API`,recommendation:'Confirm whether this usage aligns with current work and check for a change in task or model mix. High usage alone is not evidence of a policy violation.'});}
-  }
   return anomalies;
 }
 
-export function getAlerts({month=periodOptions.at(-1),department='All departments',provider='All providers',departmentBudgetOverrides={}}={}) {
+export function getAlerts({month=periodOptions.at(-1),department='All departments',provider='All providers',departmentBudgetOverrides={},thresholds={approaching:.8,high:.9,reached:1}}={}) {
   const policies=alertCatalog.filter((alert)=>(department==='All departments'||alert.department===department||alert.department==='Organization')&&(provider==='All providers'||alert.tool.toLowerCase().includes(provider.toLowerCase())||alert.department==='Organization'));
   const budgetAlerts=departmentCatalog.filter((team)=>department==='All departments'||team.name===department).flatMap((team)=>{
     const spend=getToolsForMonth(month,{department:team.name,provider}).reduce((sum,tool)=>sum+tool.spend,0);
     const budget=departmentBudgetOverrides[team.name]??team.monthlyBudget;
     const ratio=budget?spend/budget:0;
-    if(ratio<.8)return [];
-    return [{id:`budget-${team.name.toLowerCase().replaceAll(' ','-')}`,type:'Budget signal',severity:ratio>=1?'High':'Medium',title:ratio>=1?`${team.name} is over its sample budget`:`${team.name} is nearing its sample budget`,department:team.name,change:`${Math.round(ratio*100)}% used`,baseline:`${formatMoneyForData(budget)} ${month.month} budget`,tool:'Multiple tools',recommendation:'Review department spend by tool and discuss any budget change with the budget owner.'}];
+    if(ratio<thresholds.approaching)return [];
+    const severity=ratio>=thresholds.reached?'High':ratio>=thresholds.high?'Medium':'Low';
+    return [{id:`budget-${team.name.toLowerCase().replaceAll(' ','-')}`,type:'Budget signal',severity,title:ratio>thresholds.reached?`${team.name} is over its sample budget`:ratio>=thresholds.reached?`${team.name} has reached its sample budget`:`${team.name} is nearing its sample budget`,department:team.name,change:`${Math.round(ratio*100)}% used`,baseline:`${formatMoneyForData(budget)} ${month.month} budget`,tool:'Multiple tools',recommendation:'Review department spend by tool and discuss any budget change with the budget owner.'}];
   });
   const anomalies=getAnomalyAlerts(month,{department,provider});
   const unusedAlerts=policies.filter((alert)=>alert.id==='alert-07').flatMap((alert)=>{
@@ -166,8 +174,6 @@ export function getIntegrationMetrics({provider='All providers'}={}) {
 
 export function searchInventory(query) {
   const value=query.trim().toLowerCase();
-  if(!value)return {tools:[],employees:[]};
-  return {tools:toolCatalog.filter((tool)=>[tool.name,tool.provider,tool.ownerDepartment,tool.governance].join(' ').toLowerCase().includes(value)).slice(0,5),employees:employees.filter((person)=>[person.name,person.department,person.role,...person.tools].join(' ').toLowerCase().includes(value)).slice(0,5)};
+  if(!value)return {tools:[],teams:[]};
+  return {tools:toolCatalog.filter((tool)=>[tool.name,tool.provider,tool.ownerDepartment,tool.governance].join(' ').toLowerCase().includes(value)).slice(0,5),teams:departmentCatalog.filter((team)=>team.name.toLowerCase().includes(value)).slice(0,5)};
 }
-
-export function getEmployeeDetails(employeeId) { return employees.find((employee)=>employee.id===employeeId)||null; }

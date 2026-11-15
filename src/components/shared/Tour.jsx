@@ -3,8 +3,8 @@ import { ArrowLeft, ArrowRight, X, Sparkles } from 'lucide-react';
 const steps = [
  { target: 'metric-spend', title: 'Start with the money', body: 'This card adds up estimated AI spending across connected tools. The small bar shows how much of your organization’s monthly budget is already used.' },
  { target: 'budget-chart', title: 'Check if spending is on track', body: 'The solid line shows actual spend over time. The dotted line is your budget. Hover over a point to see the numbers for that month.' },
- { target: 'people-chart', title: 'See where AI is used', body: 'This chart groups active users by department. It helps you understand adoption without needing to inspect every person one by one.' },
- { target: 'tools-table', title: 'Review individual tools', body: 'Each row shows a tool’s users, spend, and spending cap. Select a row for details. “Near limit” means 90% or more of its cap has been used.' },
+ { target: 'people-chart', title: 'Compare teams, not individual activity', body: 'This chart summarizes spend, subscriptions, and API usage by department. It does not show browsing history or individual activity.' },
+ { target: 'tools-table', title: 'Review individual tools', body: 'Each row shows a tool’s sample users, spend, spending cap, remaining amount, and limit status. The approaching threshold starts at 80% by default and can be adjusted in Limit policy.' },
  { target: 'policy-alerts', title: 'Follow up on alerts', body: 'Alerts flag activity that may need an IT or security review. In this demo, figures and alerts are sample data rather than live monitoring.' },
 ];
 export default function Tour({ open, step, setStep, onClose }) {

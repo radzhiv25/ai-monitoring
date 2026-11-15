@@ -13,6 +13,7 @@ const DepartmentChart = React.lazy(() => import("./components/overview/Charts").
 const SpendByToolChart = React.lazy(() => import("./components/overview/Charts").then((module) => ({ default: module.SpendByToolChart })));
 import { DetailDialog, ToolDrawer, ToolsTable } from "./components/shared/ToolsTable";
 import RequestBudgetModal from "./components/shared/RequestBudgetModal";
+import BudgetRequestsPage from "./components/governance/BudgetRequestsPage";
 const AlertsPanel = React.lazy(() => import("./components/governance/AlertsPanel"));
 const ModelAnalytics = React.lazy(() => import("./components/governance/ModelAnalytics"));
 const LicensePanel = React.lazy(() => import("./components/governance/LicensePanel"));
@@ -24,10 +25,13 @@ const BehindDashboard = React.lazy(() => import("./components/documentation/Behi
 import DashboardFilters from "./components/overview/DashboardFilters";
 import ViewModeSwitch from "./components/overview/ViewModeSwitch";
 import {
+  auditEventCatalog,
+  budgetRequestCatalog,
   departmentCatalog,
-  employees,
   formatMoney,
   periodOptions,
+  sampleCycleDay,
+  temporaryExceptionCatalog,
   toolCatalog,
 } from "./data/demoData";
 import {
@@ -45,21 +49,23 @@ import {
   searchInventory,
 } from "./services/dashboardData";
 
+const isCaseStudyLocation = () => location.pathname.replace(/\/$/, "").endsWith("/case-study") || location.hash === "#case-study";
+const workspacePath = () => location.pathname.replace(/\/case-study\/?$/, "") || "/";
+
 export default function App() {
   const [active, setActive] = useState("Overview");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [displayMode, setDisplayMode] = useState("quick");
-  const [page, setPage] = useState(location.hash === "#dashboard" ? "dashboard" : "docs");
+  const [page, setPage] = useState(() => isCaseStudyLocation() ? "case-study" : "dashboard");
   const [selectedMonth, setSelectedMonth] = useState("Nov");
   const [range, setRange] = useState("Last 6 months");
   const [granularity, setGranularity] = useState("month");
   const [department, setDepartment] = useState("All departments");
   const [provider, setProvider] = useState("All providers");
-  const [departmentMetric, setDepartmentMetric] = useState("users");
+  const [departmentMetric, setDepartmentMetric] = useState("spend");
   const [spendGroup, setSpendGroup] = useState("tool");
   const [query, setQuery] = useState("");
   const [selectedTool, setSelectedTool] = useState(null);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [selectedModel, setSelectedModel] = useState(null);
@@ -74,24 +80,25 @@ export default function App() {
   const [departmentBudgetOverrides, setDepartmentBudgetOverrides] = useState(
     {},
   );
-  const [budgetRequests, setBudgetRequests] = useState([]);
+  const [budgetRequests, setBudgetRequests] = useState(budgetRequestCatalog);
+  const [temporaryExceptions, setTemporaryExceptions] = useState(temporaryExceptionCatalog);
+  const [auditEvents, setAuditEvents] = useState(auditEventCatalog);
   const [requestTarget, setRequestTarget] = useState(null);
   const [routingThreshold, setRoutingThreshold] = useState(2500);
+  const [thresholds, setThresholds] = useState({ approaching: 0.8, high: 0.9, reached: 1 });
 
   useEffect(() => {
     if (
-      location.hash === "#dashboard" &&
+      !isCaseStudyLocation() &&
       !localStorage.getItem("cloudeagle-ai-governance-tour-seen")
     )
       setTourOpen(true);
   }, []);
   useEffect(() => {
-    const syncRoute = () =>
-      setPage(
-        location.hash === "#dashboard" ? "dashboard" : "docs",
-      );
+    const syncRoute = () => setPage(isCaseStudyLocation() ? "case-study" : "dashboard");
     window.addEventListener("hashchange", syncRoute);
-    return () => window.removeEventListener("hashchange", syncRoute);
+    window.addEventListener("popstate", syncRoute);
+    return () => { window.removeEventListener("hashchange", syncRoute); window.removeEventListener("popstate", syncRoute); };
   }, []);
   useEffect(() => {
     const shortcut = (e) => {
@@ -204,14 +211,15 @@ export default function App() {
         : filteredTools.map((tool) => ({
             name: tool.name,
             spend: tool.spend,
+            monthlyLimit: tool.monthlyLimit,
             toolId: tool.id,
             provider: tool.provider,
           })),
     [spendGroup, providersSpend, filteredTools],
   );
   const alerts = useMemo(
-    () => getAlerts({ month, department, provider, departmentBudgetOverrides }),
-    [month, department, provider, departmentBudgetOverrides],
+    () => getAlerts({ month, department, provider, departmentBudgetOverrides, thresholds }),
+    [month, department, provider, departmentBudgetOverrides, thresholds],
   );
   const anomalies = useMemo(
     () => getAnomalyAlerts(month, { department, provider }),
@@ -234,7 +242,7 @@ export default function App() {
   );
   const departmentsOverLimit = departmentsInScope.filter((team) => {
     const limit = departmentBudgetOverrides[team.name] ?? team.monthlyBudget;
-    return limit > 0 && team.spend / limit >= 0.8;
+    return limit > 0 && team.spend / limit >= thresholds.approaching;
   });
   const pendingApprovalsCount = budgetRequests.filter((request) => request.status === "Pending approval").length;
   const integrations = useMemo(
@@ -242,7 +250,7 @@ export default function App() {
     [provider],
   );
   const apiTools = getToolsForMonth(month, { department, provider }).filter(
-    (tool) => tool.kind === "API consumption",
+    (tool) => tool.kind === "API consumption" && tool.requests !== null,
   );
   const requests = apiTools.reduce(
     (sum, tool) => sum + (tool.requests || 0),
@@ -261,36 +269,50 @@ export default function App() {
     localStorage.setItem("cloudeagle-ai-governance-tour-seen", "1");
   }, []);
   const closeBudgetRequest = useCallback(() => setRequestTarget(null), []);
-  const submitBudgetRequest = ({ amount, reason, duration, target, route }) => {
-    setBudgetRequests((current) => [{
-      id: `request-${Date.now()}`,
-      target,
-      amount,
-      reason,
-      duration,
-      route,
-      requester: "Jordan Davis · IT Operations",
-      status: "Pending approval",
-      expiresAt: duration === "This cycle only" ? "Expires at cycle end" : `Expires ${duration.replace("Until ", "on ")}`,
-    }, ...current]);
+  const submitBudgetRequest = ({ amount, reason, duration, target, route, context }) => {
+    const [scopeType, targetId] = String(target).split(":");
+    const tool = scopeType === "tool" ? toolCatalog.find((item) => item.id === targetId) : null;
+    const departmentName = tool?.ownerDepartment ?? (scopeType === "department" ? targetId : "Unattributed");
+    const currentSpend = tool ? getToolsForMonth(month).find((item) => item.id === tool.id)?.spend ?? 0 : getToolsForMonth(month, { department: departmentName }).reduce((sum, item) => sum + item.spend, 0);
+    const currentBudget = tool?.monthlyLimit ?? departmentBudgetOverrides[departmentName] ?? departmentCatalog.find((item) => item.name === departmentName)?.monthlyBudget ?? 0;
+    const cycleEnd = new Date(`${month.month} 1, ${month.year}`);
+    cycleEnd.setMonth(cycleEnd.getMonth() + 1, 0);
+    const expiresAt = duration === "This cycle only" ? `${cycleEnd.getFullYear()}-${String(cycleEnd.getMonth()+1).padStart(2,"0")}-${String(cycleEnd.getDate()).padStart(2,"0")}` : duration.replace("Until ", "");
+    const submittedAt = new Date().toISOString();
+    const request = {
+      id: `REQ-${Date.now().toString().slice(-6)}`, target, toolName: tool?.name ?? `${departmentName} department budget`, provider: tool?.provider ?? "Multiple tools", scope: tool ? "Tool" : "Department", department: departmentName,
+      currentBudget, currentSpend, amount, reason, context, duration, route, requester: "Jordan Davis · IT Operations", approver: route === "a team lead" ? "Department team lead" : "IT or Finance approver",
+      submittedAt, status: "Pending approval", decisionComments: "", expiresAt,
+    };
+    setBudgetRequests((current) => [request, ...current]);
+    setAuditEvents((current) => [{ id: `event-${Date.now()}`, actor: request.requester, action: "Exception requested", resource: `${request.toolName} · ${formatMoney(amount)}`, timestamp: submittedAt }, ...current]);
     closeBudgetRequest();
   };
-  const decideBudgetRequest = (id, status) => setBudgetRequests((current) => current.map((request) => request.id === id ? { ...request, status } : request));
+  const decideBudgetRequest = (id, status, decisionComments = "") => {
+    const decidedAt = new Date().toISOString();
+    const request = budgetRequests.find((item) => item.id === id);
+    if (!request || (request.status !== "Pending approval" && !(request.status === "Approved" && status === "Expired"))) return;
+    setBudgetRequests((current) => current.map((item) => item.id === id ? { ...item, status, decisionComments, decidedAt } : item));
+    if (status === "Approved") setTemporaryExceptions((current) => [{ id: `exception-${id}`, requestId: id, scope: request.scope, target: request.toolName, department: request.department, amount: request.amount, approver: request.approver, startsAt: decidedAt, expiresAt: request.expiresAt, status: "Active" }, ...current]);
+    if (status === "Expired") setTemporaryExceptions((current) => current.map((item) => item.requestId === id ? { ...item, status: "Expired" } : item));
+    const actor = status === "Cancelled" ? request.requester : status === "Expired" ? "System · sample lifecycle" : request.approver;
+    setAuditEvents((current) => [{ id: `event-${Date.now()}`, actor, action: status === "Expired" ? "Temporary allocation expired" : `Exception ${status.toLowerCase()}`, resource: `${request.toolName} · ${formatMoney(request.amount)}`, timestamp: decidedAt, note: decisionComments }, ...current]);
+  };
   const goBack = () => {
-    history.replaceState(null, "", location.pathname + location.search + "#dashboard");
+    history.replaceState(null, "", `${workspacePath()}${location.search}`);
     setPage("dashboard");
   };
   const startTour = () => {
     setDisplayMode("analysis");
     setTourStep(0);
-    if (page === "behind") {
+    if (page === "case-study") {
       goBack();
       setTimeout(() => setTourOpen(true), 120);
     } else setTourOpen(true);
   };
   const openBehind = () => {
-    history.replaceState(null, "", location.pathname + location.search);
-    setPage("docs");
+    history.pushState(null, "", `${workspacePath() === "/" ? "" : workspacePath()}/case-study`);
+    setPage("case-study");
     setTourOpen(false);
   };
   const goToDetailedSection = (id) => {
@@ -299,23 +321,20 @@ export default function App() {
   };
   const navigate = (section) => {
     setActive(section);
+    if (section === "Budget Requests") { setDisplayMode("analysis"); return; }
     if (section === "Integrations") {
       goToDetailedSection("integration-health");
       return;
     }
-    if (section === "Access controls") {
-      setNotice("Access controls");
-      return;
-    }
-    if (section === "Policies") {
+    if (section === "Policies & Alerts") {
       goToDetailedSection("policy-alert-list");
       return;
     }
     const targets = {
       Overview: "page-top",
-      "AI tools": "tools-table",
+      "AI Tools": "tools-table",
       People: "people-chart",
-      Budgets: "budget-chart",
+      "Budgets & Limits": "budget-chart",
     };
     document
       .getElementById(targets[section])
@@ -374,12 +393,15 @@ export default function App() {
       }).find((item) => item.id === tool.id) || tool,
     );
   };
-  const onSearchEmployee = (employee) => {
+  const onSearchTeam = (team) => {
     setQuery("");
-    setSelectedEmployee(employee);
+    setDepartment(team.name);
+    setDepartmentMetric("spend");
+    setActive("Overview");
+    window.setTimeout(() => document.getElementById("people-chart")?.scrollIntoView({ behavior: "smooth", block: "center" }), 40);
   };
   const onDepartmentSelect = (name) => {
-    setDepartment(name);
+    if (name !== "Unattributed") setDepartment(name);
     setSelectedDepartment(name);
     document
       .getElementById("tools-table")
@@ -398,6 +420,13 @@ export default function App() {
   };
   const updateGovernance = (id, status) =>
     setGovernanceOverrides((current) => ({ ...current, [id]: status }));
+  const updateThreshold = (key, value) => setThresholds((current) => {
+    const step = 0.01;
+    if (key === "approaching") return { ...current, approaching: Math.min(value, current.high - step) };
+    if (key === "high") return { ...current, high: Math.max(current.approaching + step, Math.min(value, current.reached - step)) };
+    if (key === "reached") return { ...current, reached: Math.max(value, current.high + step) };
+    return current;
+  });
   const filteredSpend = summary.spend;
   const filteredBudget = summary.budget;
   const toolCount = toolCatalog.length;
@@ -406,7 +435,7 @@ export default function App() {
   ];
 
   return (
-    page === "docs" ? <React.Suspense fallback={<main className="docs-loading" aria-live="polite">Loading product brief…</main>}><BehindDashboard onBack={goBack} /></React.Suspense> :
+    page === "case-study" ? <React.Suspense fallback={<main className="docs-loading" aria-live="polite">Loading case study…</main>}><BehindDashboard onBack={goBack} /></React.Suspense> :
     <div
       className={`app-shell ${sidebarCollapsed ? "sidebar-is-collapsed" : ""}`}
     >
@@ -415,6 +444,7 @@ export default function App() {
         onNavigate={navigate}
         onHelp={startTour}
         collapsed={sidebarCollapsed}
+        toolCount={toolCatalog.length}
       />
       <main className="main-area">
         <Header
@@ -422,16 +452,15 @@ export default function App() {
           setQuery={setQuery}
           searchResults={searchResults}
           onSelectTool={onSearchTool}
-          onSelectEmployee={onSearchEmployee}
+          onSelectTeam={onSearchTeam}
           onHelp={startTour}
           onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
           sidebarCollapsed={sidebarCollapsed}
-          onBehind={openBehind}
-          currentPage="dashboard"
-          onAlerts={() => goToDetailedSection("policy-alert-list")}
+          currentPage={active}
+          onAlerts={() => { setActive("Policies & Alerts"); goToDetailedSection("policy-alert-list"); }}
+          onProductBrief={openBehind}
         />
-        {
-          <div className="content" id="page-top">
+        {active === "Budget Requests" ? <BudgetRequestsPage requests={budgetRequests} exceptions={temporaryExceptions} auditEvents={auditEvents} onDecision={decideBudgetRequest} onCreate={() => setRequestTarget("New request")} /> : <div className="content" id="page-top">
             <section className="page-heading">
               <div>
                 <div className="eyebrow">
@@ -440,12 +469,8 @@ export default function App() {
                   {month.month.toUpperCase()} {month.year}{" "}
                   <span className="demo-tag">DEMO DATA</span>
                 </div>
-                <h1>
-                  AI usage &amp; spend
-                </h1>
-                <p>
-                  See where teams use AI, what it costs, and what needs a closer look.
-                </p>
+                <h1>AI budgets &amp; exceptions</h1>
+                <p>See whether spend fits its limits, which budgets need attention, and where an approval is waiting.</p>
                 <ViewModeSwitch value={displayMode} onChange={setDisplayMode} />
               </div>
               <DashboardFilters selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} range={range} setRange={setRange} granularity={granularity} setGranularity={setGranularity} department={department} setDepartment={setDepartment} provider={provider} setProvider={setProvider} onExport={exportCsv} detailed={displayMode === "analysis"} />
@@ -453,7 +478,7 @@ export default function App() {
             <div className="plain-banner">
               <CircleHelp size={15} />
               <span>
-                <b>This period:</b> {formatMoney(summary.spend)} spent of {formatMoney(summary.budget)} budget. {summary.reviewCount} tools need review.
+                <b>At a glance:</b> {formatMoney(summary.spend)} of {formatMoney(summary.budget)} tracked budget · {departmentsOverLimit.length} departments approaching a limit · {pendingApprovalsCount} requests waiting for review.
               </span>
               <button onClick={startTour}>
                 Take the quick tour <span>→</span>
@@ -471,7 +496,7 @@ export default function App() {
                     monthIndex > 0 ? previousSummary.spend : null,
                   )}
                   trendText={`vs. ${previousMonth.month}`}
-                  foot={`of ${formatMoney(summary.budget)} budget`}
+                  foot={<>{formatMoney(summary.subscriptionSpend)} subscriptions · {formatMoney(summary.apiSpend)} API · of {formatMoney(summary.budget)} budget</>}
                   progress={
                     summary.budget
                       ? Math.min(100, (summary.spend / summary.budget) * 100)
@@ -488,11 +513,11 @@ export default function App() {
               <div>
                 <MetricCard
                   kind="ShieldCheck"
-                  label="DEPARTMENTS OVER 80%"
+                  label={`DEPARTMENTS OVER ${Math.round(thresholds.approaching * 100)}%`}
                   value={departmentsOverLimit.length.toLocaleString()}
                   unit={departmentsOverLimit.length === 1 ? "department" : "departments"}
                   foot={`${departmentsInScope.length} departments in selected filters`}
-                  status="Departments counted here have used at least 80% of their configured budget in this sample period. The summary does not block spending."
+                  status={`Departments counted here have used at least ${Math.round(thresholds.approaching * 100)}% of their configured budget in this sample period. The summary does not block spending.`}
                   onClick={() => { setDepartmentMetric("spend"); goToDetailedSection("people-chart"); }}
                 />
               </div>
@@ -513,7 +538,7 @@ export default function App() {
                   label="IDLE ASSIGNED SEATS"
                   value={licenseSummary.inactiveAssigned.toLocaleString()}
                   unit={licenseSummary.inactiveAssigned === 1 ? "seat" : "seats"}
-                  foot="Assigned seats with no observed activity"
+                  foot={`${formatMoney(licenseSummary.estimatedMonthlySavings)} estimated monthly value in inactive assigned seats`}
                   status="Sample assigned seats with no observed activity in the selected period. Confirm owners and contract terms before taking action."
                   onClick={() => goToDetailedSection("license-utilization")}
                 />
@@ -561,23 +586,29 @@ export default function App() {
                 granularity={granularity}
                 currentSpend={filteredSpend}
                 currentBudget={filteredBudget}
+                elapsedDays={sampleCycleDay}
+                cycleDays={new Date(month.year, new Date(`${month.month} 1, ${month.year}`).getMonth() + 1, 0).getDate()}
               />
               <DepartmentChart
                 data={departmentMetrics}
                 metric={departmentMetric}
                 setMetric={setDepartmentMetric}
                 activeUsers={summary.users}
+                attributionCoverage={departmentMetrics[0]?.attributionCoverage ?? 1}
+                unattributedSpend={departmentMetrics[0]?.unattributedSpend ?? 0}
                 onDepartmentSelect={onDepartmentSelect}
               /></React.Suspense>
             </section>
-            {displayMode === "analysis" && <React.Suspense fallback={<div className="panel chart-loading" aria-live="polite">Loading spend analysis…</div>}><div className="analysis-enter"><SpendByToolChart
+            <React.Suspense fallback={<div className="panel chart-loading" aria-live="polite">Loading spend analysis…</div>}><div className="analysis-enter"><SpendByToolChart
               data={spendChartData}
               groupBy={spendGroup}
               setGroupBy={setSpendGroup}
               onSelect={onBarSelect}
-            /></div></React.Suspense>}
+              thresholds={thresholds}
+            /></div></React.Suspense>
             <ToolsTable
               tools={filteredTools}
+              thresholds={thresholds}
               onSelect={setSelectedTool}
               totalCount={filteredTools.length}
               maxRows={displayMode === "quick" ? 5 : undefined}
@@ -600,8 +631,8 @@ export default function App() {
               onSelect={setSelectedLicense}
             />
             <AnomalyPanel alerts={anomalies} onSelect={setSelectedAlert} />
-            <AlertsPanel alerts={alerts} onSelect={setSelectedAlert} budgetRequests={budgetRequests} onRequestDecision={decideBudgetRequest} />
-            <LimitPolicyPanel departmentCatalog={departmentCatalog} departmentBudgetOverrides={departmentBudgetOverrides} onDepartmentBudgetChange={(name, value) => setDepartmentBudgetOverrides((current) => ({ ...current, [name]: value }))} />
+            <AlertsPanel alerts={alerts} onSelect={setSelectedAlert} budgetRequests={budgetRequests} onReviewRequest={() => setActive("Budget Requests")} />
+            <LimitPolicyPanel departmentCatalog={departmentCatalog} departmentBudgetOverrides={departmentBudgetOverrides} onDepartmentBudgetChange={(name, value) => setDepartmentBudgetOverrides((current) => ({ ...current, [name]: value }))} thresholds={thresholds} onThresholdChange={updateThreshold} />
             <IntegrationHealth integrations={integrations} onSelect={setSelectedIntegration} />
             </div></React.Suspense>}
             <footer>
@@ -613,14 +644,17 @@ export default function App() {
                 <button onClick={startTour}>Help &amp; tour</button>
               </span>
             </footer>
-          </div>
-        }
+          </div>}
       </main>
       <ToolDrawer
         tool={selectedTool}
         onClose={() => setSelectedTool(null)}
         onGovernanceChange={updateGovernance}
-        onRequestBudget={(tool) => setRequestTarget(`${tool.name} (${tool.ownerDepartment})`)}
+        onRequestBudget={(tool) => setRequestTarget(`tool:${tool.id}`)}
+        thresholds={thresholds}
+        departmentMetrics={departmentSpendMetrics}
+        departmentBudgetOverrides={departmentBudgetOverrides}
+        temporaryExceptions={temporaryExceptions}
       />
       <Tour
         open={tourOpen}
@@ -628,32 +662,6 @@ export default function App() {
         setStep={setTourStep}
         onClose={onCloseTour}
       />
-      {selectedEmployee && (
-        <DetailDialog
-          title={selectedEmployee.name}
-          subtitle={`${selectedEmployee.role} · ${selectedEmployee.department} · illustrative employee data`}
-          onClose={() => setSelectedEmployee(null)}
-        >
-          <div className="employee-detail">
-            <b>Observed tool activity</b>
-            <p>
-              {selectedEmployee.activeDays} active days in the sample period ·{" "}
-              {formatMoney(selectedEmployee.monthlySpend)} associated sample
-              spend
-            </p>
-            <b>Tools</b>
-            <ul>
-              {selectedEmployee.tools.map((tool) => (
-                <li key={tool}>{tool}</li>
-              ))}
-            </ul>
-            <small>
-              Person-level visibility depends on provider attribution and
-              organization access rules.
-            </small>
-          </div>
-        </DetailDialog>
-      )}
       {selectedAlert && (
         <DetailDialog
           title={selectedAlert.title}
@@ -702,9 +710,7 @@ export default function App() {
             <div className="detail-stat-row">
               <span>Active users</span>
               <b>
-                {departmentMetrics.find(
-                  (item) => item.name === selectedDepartment,
-                )?.activeUsers || 0}
+                {departmentMetrics.find((item) => item.name === selectedDepartment)?.activeUsers == null ? "Unavailable" : departmentMetrics.find((item) => item.name === selectedDepartment)?.activeUsers}
               </b>
             </div>
             <div className="detail-stat-row">
@@ -729,20 +735,8 @@ export default function App() {
                 )}
               </b>
             </div>
-            <h3>People to review</h3>
-            <ul>
-              {employees
-                .filter((person) => person.department === selectedDepartment)
-                .map((person) => (
-                  <li key={person.id}>
-                    {person.name}{" "}
-                    <small>
-                      · {person.role} · {person.activeDays} active days
-                    </small>
-                  </li>
-                ))}
-            </ul>
-            <label className="budget-edit">
+            {selectedDepartment === "Unattributed" ? <><h3>Unattributed tools</h3><ul>{getToolsForMonth(month).filter((tool) => !tool.ownerDepartment).map((tool) => <li key={tool.id}><button className="text-button" onClick={() => setSelectedTool(tool)}>{tool.name}</button><small> · {formatMoney(tool.spend)} · {tool.provider}</small></li>)}</ul><p className="demo-action-note">Costs remain here until an owner is confirmed. They are not spread across departments.</p></> : <><h3>Tools used by this department</h3><ul>{getToolsForMonth(month, { department: selectedDepartment }).map((tool) => <li key={tool.id}><button className="text-button" onClick={() => setSelectedTool(tool)}>{tool.name}</button><small> · {tool.kind} · {formatMoney(tool.spend)}</small></li>)}</ul><p className="demo-action-note">Usage is shown at team level. Individual browsing and activity history are not part of this prototype.</p></>}
+            {selectedDepartment !== "Unattributed" && <label className="budget-edit">
               Demo budget limit{" "}
               <input
                 type="number"
@@ -759,8 +753,8 @@ export default function App() {
                   (event.target.dataset.pending = event.target.value)
                 }
               />
-            </label>
-            <button
+            </label>}
+            {selectedDepartment !== "Unattributed" && <button
               className="button secondary"
               onClick={(event) => {
                 const input =
@@ -773,12 +767,14 @@ export default function App() {
                     input.dataset.pending ?? input.value,
                   ),
                 }));
+                const updatedBudget = Number(input.dataset.pending ?? input.value);
+                setAuditEvents((current) => [{ id: `event-${Date.now()}`, actor: "Jordan Davis · IT Operations", action: "Department budget updated", resource: `${selectedDepartment} · ${formatMoney(updatedBudget)}`, timestamp: new Date().toISOString() }, ...current]);
                 setNotice("Demo budget updated");
               }}
             >
               Save demo budget
-            </button>
-            <button className="button secondary" onClick={() => setRequestTarget(`${selectedDepartment} department budget`)}>Request extra budget</button>
+            </button>}
+            {selectedDepartment !== "Unattributed" && <button className="button secondary" onClick={() => setRequestTarget(`department:${selectedDepartment}`)}>Request extra budget</button>}
             <p className="demo-action-note">
               Budget changes are stored only in this browser session; no finance
               system is updated.
@@ -836,7 +832,7 @@ export default function App() {
           </div>
         </DetailDialog>
       )}
-      <RequestBudgetModal open={Boolean(requestTarget)} target={requestTarget || ""} threshold={routingThreshold} onThresholdChange={setRoutingThreshold} onClose={closeBudgetRequest} onSubmit={submitBudgetRequest} />
+      <RequestBudgetModal open={Boolean(requestTarget)} target={requestTarget || ""} tools={getToolsForMonth(month)} departments={departmentCatalog} threshold={routingThreshold} onThresholdChange={setRoutingThreshold} onClose={closeBudgetRequest} onSubmit={submitBudgetRequest} />
       {notice && (
         <div className="modal-backdrop" onClick={() => setNotice(null)}>
           <section
