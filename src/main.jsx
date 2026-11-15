@@ -7,4 +7,5 @@ import './styles/docs.css';
 import './styles/overview-mode.css';
 import './styles/product-brief-and-budget.css';
 import './styles/proposal-brief.css';
+import './styles/responsive-polish.css';
 createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);

@@ -61,7 +61,7 @@ export default function RequestBudgetModal({ open, target, threshold, onThreshol
       <button type="button" className="modal-close" onClick={onClose} aria-label="Close budget request"><X size={17}/></button>
       <div className="modal-icon" aria-hidden="true">＋</div>
       <h2 id="request-budget-title">Request extra budget</h2>
-      <p id="request-budget-description">Create a local demo request for <b>{target}</b>. No budget or access changes until a reviewer acts.</p>
+      <p id="request-budget-description">Create a local demo request for <b>{target}</b>. No budget or access changes until an approver acts.</p>
       <form onSubmit={submit}>
         <label className="request-field">Amount requested (USD)<input autoComplete="off" inputMode="decimal" type="number" min="1" step="1" required value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="e.g. 500"/></label>
         <label className="request-field">Reason<textarea required rows="3" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="What work needs the additional budget?"/></label>

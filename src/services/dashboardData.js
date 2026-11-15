@@ -76,6 +76,13 @@ export function getDepartmentMetrics(month, metric = 'users', provider = 'All pr
     const users=userValues[index];
     return {...department,users,activeUsers:users,spend,tokens,value:metric==='spend'?spend:metric==='tokens'?tokens:users};
   });
+  const mappedDepartments=new Set(departmentCatalog.map((department)=>department.name));
+  const unattributedTools=tools.filter((tool)=>!mappedDepartments.has(tool.ownerDepartment));
+  if(unattributedTools.length){
+    const spend=unattributedTools.reduce((sum,tool)=>sum+tool.spend,0);
+    const tokens=unattributedTools.reduce((sum,tool)=>sum+(tool.inputTokens||0)+(tool.outputTokens||0),0);
+    byDepartment.push({name:'Unattributed',users:null,activeUsers:null,spend,tokens,value:metric==='spend'?spend:metric==='tokens'?tokens:null});
+  }
   return byDepartment;
 }
 
@@ -135,13 +142,13 @@ export function getAnomalyAlerts(month,{department='All departments',provider='A
   return anomalies;
 }
 
-export function getAlerts({month=periodOptions.at(-1),department='All departments',provider='All providers'}={}) {
+export function getAlerts({month=periodOptions.at(-1),department='All departments',provider='All providers',departmentBudgetOverrides={}}={}) {
   const policies=alertCatalog.filter((alert)=>(department==='All departments'||alert.department===department||alert.department==='Organization')&&(provider==='All providers'||alert.tool.toLowerCase().includes(provider.toLowerCase())||alert.department==='Organization'));
   const budgetAlerts=departmentCatalog.filter((team)=>department==='All departments'||team.name===department).flatMap((team)=>{
     const spend=getToolsForMonth(month,{department:team.name,provider}).reduce((sum,tool)=>sum+tool.spend,0);
-    const budget=team.monthlyBudget;
+    const budget=departmentBudgetOverrides[team.name]??team.monthlyBudget;
     const ratio=budget?spend/budget:0;
-    if(ratio<.9)return [];
+    if(ratio<.8)return [];
     return [{id:`budget-${team.name.toLowerCase().replaceAll(' ','-')}`,type:'Budget signal',severity:ratio>=1?'High':'Medium',title:ratio>=1?`${team.name} is over its sample budget`:`${team.name} is nearing its sample budget`,department:team.name,change:`${Math.round(ratio*100)}% used`,baseline:`${formatMoneyForData(budget)} ${month.month} budget`,tool:'Multiple tools',recommendation:'Review department spend by tool and discuss any budget change with the budget owner.'}];
   });
   const anomalies=getAnomalyAlerts(month,{department,provider});

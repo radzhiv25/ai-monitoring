@@ -169,6 +169,10 @@ export default function App() {
     () => getDepartmentMetrics(month, departmentMetric, provider),
     [month, departmentMetric, provider],
   );
+  const departmentSpendMetrics = useMemo(
+    () => getDepartmentMetrics(month, "spend", provider),
+    [month, provider],
+  );
   const filteredTools = useMemo(
     () =>
       getToolsForMonth(month, {
@@ -206,8 +210,8 @@ export default function App() {
     [spendGroup, providersSpend, filteredTools],
   );
   const alerts = useMemo(
-    () => getAlerts({ month, department, provider }),
-    [month, department, provider],
+    () => getAlerts({ month, department, provider, departmentBudgetOverrides }),
+    [month, department, provider, departmentBudgetOverrides],
   );
   const anomalies = useMemo(
     () => getAnomalyAlerts(month, { department, provider }),
@@ -225,6 +229,14 @@ export default function App() {
     () => getLicenseSummary(licenseMetrics),
     [licenseMetrics],
   );
+  const departmentsInScope = departmentSpendMetrics.filter(
+    (team) => team.name !== "Unattributed" && (department === "All departments" || team.name === department),
+  );
+  const departmentsOverLimit = departmentsInScope.filter((team) => {
+    const limit = departmentBudgetOverrides[team.name] ?? team.monthlyBudget;
+    return limit > 0 && team.spend / limit >= 0.8;
+  });
+  const pendingApprovalsCount = budgetRequests.filter((request) => request.status === "Pending approval").length;
   const integrations = useMemo(
     () => getIntegrationMetrics({ provider }),
     [provider],
@@ -392,7 +404,6 @@ export default function App() {
   const activeAPIProviders = [
     ...new Set(apiTools.map((tool) => tool.provider)),
   ];
-  const markedAlerts = followedAlerts.length;
 
   return (
     page === "docs" ? <React.Suspense fallback={<main className="docs-loading" aria-live="polite">Loading product brief…</main>}><BehindDashboard onBack={goBack} /></React.Suspense> :
@@ -452,7 +463,7 @@ export default function App() {
               <div id="metric-spend">
                 <MetricCard
                   kind="Wallet"
-                  label="AI SPEND"
+                  label="SPEND VS BUDGET"
                   value={formatMoney(summary.spend)}
                   unit="USD"
                   trend={delta(
@@ -466,7 +477,7 @@ export default function App() {
                       ? Math.min(100, (summary.spend / summary.budget) * 100)
                       : 0
                   }
-                  status="Spend combines the mock subscription charges and API consumption records for the current filters. Budget is a separate configured allowance."
+                  status="Fictional subscription charges and API costs compared with the configured budget for the selected filters."
                   onClick={() =>
                     document
                       .getElementById("budget-chart")
@@ -476,77 +487,42 @@ export default function App() {
               </div>
               <div>
                 <MetricCard
-                  kind="Users"
-                  label="ACTIVE USERS"
-                  value={summary.users.toLocaleString()}
-                  unit="in selected period"
-                  trend={delta(
-                    summary.users,
-                    monthIndex > 0 ? previousSummary.users : null,
-                  )}
-                  trendText={`vs. ${previousMonth.month}`}
-                  foot="People, not requests or tokens"
-                  progress={(summary.users / 620) * 100}
-                  status="Organization active users are unique in the sample. Provider-filtered counts are estimates; people can use more than one provider, so provider counts should not be added together."
-                  onClick={() =>
-                    document
-                      .getElementById("people-chart")
-                      ?.scrollIntoView({ behavior: "smooth", block: "center" })
-                  }
-                />
-              </div>
-              <div>
-                <MetricCard
-                  kind="Zap"
-                  label="AI TOOLS FOUND"
-                  value={summary.toolCount.toLocaleString()}
-                  unit="in selected filters"
-                  foot={
-                    <>
-                      <span className="tool-status">
-                        <i className="status-dot" /> {summary.approvedCount}{" "}
-                        approved
-                      </span>
-                      <span className="tool-status warn">
-                        <i /> {summary.reviewCount} need review
-                      </span>
-                    </>
-                  }
-                  status="Count of tools visible with the selected department and provider filters. Tools marked review needed require a human to confirm their use."
-                  onClick={() =>
-                    document
-                      .getElementById("tools-table")
-                      ?.scrollIntoView({ behavior: "smooth", block: "center" })
-                  }
-                />
-              </div>
-              <div>
-                <MetricCard
                   kind="ShieldCheck"
-                  label="ITEMS TO REVIEW"
-                  value={alerts.length.toLocaleString()}
-                  unit="for review"
-                  foot={
-                    <>
-                      <span className="alert-pill">
-                        {
-                          alerts.filter((alert) => alert.severity === "High")
-                            .length
-                        }{" "}
-                        high priority
-                      </span>
-                      <span>
-                        {markedAlerts
-                          ? `${markedAlerts} followed up locally`
-                          : "sample signals"}
-                      </span>
-                    </>
-                  }
-                  status="Sample signals that may require investigation. An anomaly is not proof of malicious or policy-violating behavior."
+                  label="DEPARTMENTS OVER 80%"
+                  value={departmentsOverLimit.length.toLocaleString()}
+                  unit={departmentsOverLimit.length === 1 ? "department" : "departments"}
+                  foot={`${departmentsInScope.length} departments in selected filters`}
+                  status="Departments counted here have used at least 80% of their configured budget in this sample period. The summary does not block spending."
+                  onClick={() => { setDepartmentMetric("spend"); goToDetailedSection("people-chart"); }}
+                />
+              </div>
+              <div>
+                <MetricCard
+                  kind="ClipboardCheck"
+                  label="PENDING APPROVALS"
+                  value={pendingApprovalsCount.toLocaleString()}
+                  unit={pendingApprovalsCount === 1 ? "request" : "requests"}
+                  foot="Local sample requests awaiting a decision"
+                  status="Only extra-budget requests created in this prototype and still awaiting a decision are counted."
                   onClick={() => goToDetailedSection("policy-alert-list")}
                 />
               </div>
+              <div>
+                <MetricCard
+                  kind="Users"
+                  label="IDLE ASSIGNED SEATS"
+                  value={licenseSummary.inactiveAssigned.toLocaleString()}
+                  unit={licenseSummary.inactiveAssigned === 1 ? "seat" : "seats"}
+                  foot="Assigned seats with no observed activity"
+                  status="Sample assigned seats with no observed activity in the selected period. Confirm owners and contract terms before taking action."
+                  onClick={() => goToDetailedSection("license-utilization")}
+                />
+              </div>
             </section>
+            {displayMode === "analysis" && <section className="metrics detail-metrics" aria-label="Additional organization summary">
+              <div><MetricCard kind="Users" label="ACTIVE PEOPLE" value={summary.users.toLocaleString()} unit="in selected period" trend={delta(summary.users, monthIndex > 0 ? previousSummary.users : null)} trendText={`vs. ${previousMonth.month}`} foot="People, not requests or tokens" progress={(summary.users / 620) * 100} status="Organization active users are unique in the sample. Provider-filtered counts are estimates and should not be added across vendors." onClick={() => document.getElementById("people-chart")?.scrollIntoView({ behavior: "smooth", block: "center" })}/></div>
+              <div><MetricCard kind="Zap" label="CONNECTED AI TOOLS" value={summary.toolCount.toLocaleString()} unit="in selected filters" foot={<><span className="tool-status"><i className="status-dot"/> {summary.approvedCount} approved</span><span className="tool-status warn"><i/> {summary.reviewCount} need review</span></>} status="Count of tools visible with the selected department and provider filters." onClick={() => document.getElementById("tools-table")?.scrollIntoView({ behavior: "smooth", block: "center" })}/></div>
+            </section>}
             {displayMode === "analysis" && <section className="telemetry-strip" aria-label="Tracked API usage">
               <div>
                 <span className="telemetry-icon">
