@@ -10,10 +10,6 @@ const sections = [
   { id: "06", label: "User stories" },
 ];
 
-function NotInPrototype({ children }) {
-  return <span className="not-prototype-wrap"><b className="not-prototype-tag">Not in prototype</b><small>{children}</small></span>;
-}
-
 function DataTable({ caption, columns, rows, className = "" }) {
   return <div className={`proposal-table-wrap ${className}`}>
     <table className="proposal-table">
@@ -49,9 +45,9 @@ const chartColumns = [
   { key: "cost", label: "But", tone: "cost-cell" },
 ];
 const chartRows = [
-  { chart: "Spend vs limit by department (line with limit line and run-rate estimate)", decision: "Approve a top-up, tighten, or leave alone", rule: <><span>Alert at 80% of limit.</span><NotInPrototype>The estimate is not calculated from elapsed cycle days; the 100% threshold and first-7-day hiding are not implemented.</NotInPrototype></>, chosen: "A forecast line", cost: "Run-rate is noisy early in a cycle and late spikes show up late." },
-  { chart: "Usage by department, subscription vs API (ranked bar)", decision: "Move budget or enable a team", rule: <><span>‘Unattributed’ is its own bar.</span><NotInPrototype>The coverage banner below 80% owner attribution is not implemented.</NotInPrototype></>, chosen: "A donut", cost: "Low attribution makes this chart misleading, hence the 80% coverage rule." },
-  { chart: "Tool spend vs per-tool limit (sorted bars)", decision: "Raise, hold or renegotiate one tool’s cap", rule: "Highlight tools above 80%", chosen: "Idle-license chart (kept in Detailed view)", cost: "Department and tool limits can conflict. See open question 3." },
+  { chart: "Spend vs department limit (actuals, limit, run-rate estimate)", decision: "Approve an exception, tighten spend, or keep the limit", rule: "80% approaching, 90% high use, 100% reached, above 100% over. Estimate is calculated after day 7 from spend-to-date ÷ elapsed days × cycle days.", chosen: "Run-rate estimate", cost: "An estimate is sensitive to timing and does not predict the invoice." },
+  { chart: "Usage by department (subscription and API spend)", decision: "Move budget, investigate an owner gap, or prioritize a team", rule: "Unattributed is a separate bar; show a coverage warning below 80% attribution.", chosen: "Stacked bars", cost: "Spend type is visible together; attribution gaps stay explicit." },
+  { chart: "Tool spend vs tool limit (sorted bars)", decision: "Raise, hold, or review one tool’s cap", rule: "Show utilization, remaining amount, and limit status; highlight at the configurable approaching threshold.", chosen: "Paired bars plus inventory detail", cost: "Tool limits and department budgets are independent. An increase in one does not change the other." },
 ];
 
 const decisionColumns = [
@@ -113,7 +109,7 @@ export default function BehindDashboard({ onBack }) {
       <Section id="02" icon={Scale} title="API and data source plan">
         <DataTable caption="API and data sources required for the proposal" columns={sourceColumns} rows={sourceRows}/>
         <h3 className="proposal-subhead">Data rules <span>(Proposed)</span></h3>
-        <ul className="proposal-list"><li>If less than 80% of spend can be attributed to an owner, show a coverage banner on the department chart instead of hiding the gap.</li><li>Missing data is shown as &quot;Unavailable&quot;, never as zero.</li><li>Every metric shows its source and last successful sync. Daily sync is enough for the MVP.</li><li>Collect consumption data, not browsing data. Department view by default; individual drill-down only for authorised roles.</li></ul>
+        <ul className="proposal-list"><li>If less than 80% of spend can be attributed to an owner, show a coverage banner on the department chart instead of hiding the gap.</li><li>Missing data is shown as &quot;Unavailable&quot;, never as zero.</li><li>Every metric shows its source and last successful sync. Daily sync is enough for the MVP.</li><li>Collect consumption data, not browsing data. Keep usage views aggregated at department level.</li></ul>
         <aside className="proposal-question"><b>Verify before building</b><p>Which vendors let an outside tool enforce a limit through their API? If a vendor only reports usage, the product can alert and route approvals but cannot block.</p></aside>
       </Section>
 
