@@ -40,6 +40,15 @@ Help finance, IT, and security stakeholders answer three questions quickly: whic
 | Usage anomalies | Compare provider API request volume with the previous month and one employee’s tokens with a personal baseline; show severity, baseline, department, and investigation recommendation. | Baseline and current telemetry are fictional sample records. | Anomaly cards say “investigate”; they do not claim malicious activity or a policy violation. |
 | Integration health | Show sample source status, last sync, field coverage, and affected data types; delayed and partial sources are visible. | Sample sync metadata is attached to provider, identity, and finance sources. | No integration is connected. Stale or incomplete data must not appear fully current. |
 
+## Changes in this update
+
+| Decision | User problem | Assumption | Trade-off |
+|---|---|---|---|
+| Put the IT lead, core question, three selected charts, and their decisions at the top of the brief; call all other dashboard panels supporting detail | Reviewers need to understand who the screen serves and what action each primary view supports | Finance can use a concise budget summary while IT owns the overall AI program | The brief is more explicit and slightly longer; only three views are framed as primary charts |
+| Add a request-extra-budget flow from both tool and department details, with amount, reason, duration, configurable routing threshold, expiry, and local Approve/Deny state | A person near a limit needs a clear way to ask for more budget and see who reviews it | Small requests can go to a team lead, while larger requests need IT or Finance review; the current requester is a fictional IT lead | Requests are a local prototype queue, not an approval integration, notification, or actual spend-limit change; the modal adds a short step to the flow |
+| Add three role-based user stories and acceptance criteria plus a note on later phases | The prototype needs to explain success criteria and deferred scope in interview discussion | Project budgets and customer-defined Jira/GitHub outcomes can follow after basic department budgets | Outcome correlation is deferred, and tokens are explicitly not treated as productivity |
+| Add local limit-policy controls to detailed analysis for department and access-level defaults, a per-user guardrail, and cap behavior | An IT owner needs a visible place to reason about default limits and guardrails | People default to a soft cap and API keys to a hard cap in the sample policy | Controls are illustrative and do not enforce access; separate switches offer flexibility but can be changed away from recommended defaults |
+
 ## P2 candidates
 
 - AI agents, service accounts, API keys, internal apps, and MCP-connected identities.
@@ -66,3 +75,10 @@ Provider usage records should preserve provider, model, timestamp, employee/team
 ## Success criteria for the prototype
 
 A stakeholder can identify the selected period’s total spend and remaining budget, compare team activity by people/tokens/spend, locate the highest-cost tools/providers, search for an employee or tool, inspect an alert’s basis and next step, and distinguish demo data from live data.
+
+## Brief rewrite
+
+- Replaced the earlier generic UI-description copy with a product proposal organized around the IT lead's decision, the CloudEagle fit hypothesis, data dependencies, chart choices, explicit trade-offs, success hypotheses, and open questions.
+- Added decision and trade-off tables with a visually distinct cost column. The source-plan, chart-selection, product-decision, and success-metric tables make assumptions and costs reviewable; mobile layouts present the same content as stacked cards.
+- Added proposed success metrics as hypotheses for design-partner validation, not as measured facts. Added an explicit Proposed/Assumed legend and marked the CloudEagle capability statements as assumptions.
+- Preserved the section-chip navigation, fictional sample-data note, and Open the dashboard action. User stories are collapsed by default.
