@@ -2,15 +2,11 @@ import { useState } from "react";
 
 const brand = {
   Anthropic: ["anthropic", "D97757"],
-  Anthropic: ["anthropic", "D97757"],
   Google: ["google", "4285F4"],
-  Microsoft: ["microsoft", "5E5E5E"],
   GitHub: ["githubcopilot", "24292F"],
-  Midjourney: ["midjourney", "5865F2"],
   Perplexity: ["perplexity", "1FB8CD"],
   Cursor: ["cursor", "24292F"],
   Notion: ["notion", "171717"],
-  Runway: ["runway", "171717"],
 };
 
 /** Uses the ChatGPT mark for OpenAI and Simple Icons for other providers, with an initials fallback. */
